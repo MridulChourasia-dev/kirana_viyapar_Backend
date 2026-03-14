@@ -1,0 +1,376 @@
+version: '3.9'
+
+services:
+  # PostgreSQL Database - Production configuration
+  postgres:
+    image: postgres:15-alpine
+    container_name: viyapar-db-prod
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-viyapar}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-changeme}
+      POSTGRES_DB: ${POSTGRES_DB:-viyapar}
+      POSTGRES_INITDB_ARGS: >
+        --encoding=UTF8
+        --lc-collate=en_US.UTF-8
+        --lc-ctype=en_US.UTF-8
+        --shared_buffers=256MB
+        --effective_cache_size=1GB
+        --maintenance_work_mem=64MB
+        --checkpoint_completion_target=0.9
+        --wal_buffers=16MB
+        --default_statistics_target=100
+        --random_page_cost=1.1
+        --effective_io_concurrency=200
+        --work_mem=4MB
+        --min_wal_size=1GB
+        --max_wal_size=4GB
+        --max_worker_processes=4
+        --max_parallel_workers_per_gather=2
+        --max_parallel_workers=4
+        --max_parallel_maintenance_workers=2
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./docker/init-db.sh:/docker-entrypoint-initdb.d/01-init-db.sh:ro
+      - postgres_backups:/backups
+    ports:
+      - "127.0.0.1:5432:5432"  # Only listen on localhost
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-viyapar}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    restart: always
+    networks:
+      - viyapar-net
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "5"
+        labels: "service=postgres"
+
+  # Redis for caching and messaging
+  redis:
+    image: redis:7-alpine
+    container_name: viyapar-redis-prod
+    command: >
+      redis-server
+      --appendonly yes
+      --appendfsync everysec
+      --requirepass ${REDIS_PASSWORD:-changeme}
+      --maxmemory 512mb
+      --maxmemory-policy allkeys-lru
+      --timeout 300
+      --tcp-keepalive 60
+      --port 6379
+    volumes:
+      - redis_data:/data
+    ports:
+      - "127.0.0.1:6379:6379"  # Only listen on localhost
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD:-changeme}", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    restart: always
+    networks:
+      - viyapar-net
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "5"
+        labels: "service=redis"
+
+  # FastAPI Backend - Production with Gunicorn
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.prod
+      args:
+        BUILDKIT_INLINE_CACHE: 1
+    image: viyapar-backend:latest
+    container_name: viyapar-backend-prod
+    environment:
+      # Database
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-viyapar}:${POSTGRES_PASSWORD:-changeme}@postgres:5432/${POSTGRES_DB:-viyapar}
+      
+      # Redis/Cache
+      REDIS_URL: redis://:${REDIS_PASSWORD:-changeme}@redis:6379/0
+      
+      # JWT Configuration
+      SECRET_KEY: ${SECRET_KEY}
+      ALGORITHM: ${ALGORITHM:-HS256}
+      ACCESS_TOKEN_EXPIRE_MINUTES: ${ACCESS_TOKEN_EXPIRE_MINUTES:-10080}
+      
+      # Celery Configuration
+      CELERY_BROKER_URL: redis://:${REDIS_PASSWORD:-changeme}@redis:6379/0
+      CELERY_RESULT_BACKEND: redis://:${REDIS_PASSWORD:-changeme}@redis:6379/0
+      CELERY_TASK_SERIALIZER: json
+      CELERY_RESULT_SERIALIZER: json
+      CELERY_ACCEPT_CONTENT: json
+      CELERY_TIMEZONE: UTC
+      CELERY_ENABLE_UTC: "true"
+      
+      # Environment
+      ENVIRONMENT: production
+      DEBUG: "false"
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      
+      # Email
+      SMTP_HOST: ${SMTP_HOST}
+      SMTP_PORT: ${SMTP_PORT}
+      SMTP_USER: ${SMTP_USER}
+      SMTP_PASSWORD: ${SMTP_PASSWORD}
+      SMTP_FROM: ${SMTP_FROM}
+      
+      # AWS S3
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY}
+      AWS_S3_BUCKET: ${AWS_S3_BUCKET}
+      AWS_REGION: ${AWS_REGION:-us-east-1}
+    
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    
+    ports:
+      - "127.0.0.1:8000:8000"  # Only listen on localhost (Nginx is public)
+    
+    volumes:
+      - ./backend:/app
+      - backend_logs:/app/logs
+      - backend_uploads:/app/uploads
+    
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    
+    restart: always
+    
+    networks:
+      - viyapar-net
+    
+    # Resource limits for production
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 2G
+        reservations:
+          cpus: '1'
+          memory: 1G
+    
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "5"
+        labels: "service=backend"
+
+  # Celery Worker - Process background tasks
+  celery-worker:
+    build:
+      context: .
+      dockerfile: Dockerfile.prod
+    image: viyapar-backend:latest
+    container_name: viyapar-celery-worker-prod
+    command: celery -A app.celery_app worker --loglevel=info --concurrency=4 --prefetch-multiplier=1 -Q default,priority,reports,notifications
+    environment:
+      # Database
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-viyapar}:${POSTGRES_PASSWORD:-changeme}@postgres:5432/${POSTGRES_DB:-viyapar}
+      
+      # Redis/Cache
+      REDIS_URL: redis://:${REDIS_PASSWORD:-changeme}@redis:6379/0
+      
+      # Celery Configuration
+      CELERY_BROKER_URL: redis://:${REDIS_PASSWORD:-changeme}@redis:6379/0
+      CELERY_RESULT_BACKEND: redis://:${REDIS_PASSWORD:-changeme}@redis:6379/0
+      CELERY_TASK_SERIALIZER: json
+      CELERY_RESULT_SERIALIZER: json
+      CELERY_ACCEPT_CONTENT: json
+      CELERY_TIMEZONE: UTC
+      CELERY_ENABLE_UTC: "true"
+      
+      # Environment
+      ENVIRONMENT: production
+      DEBUG: "false"
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      
+      # Email
+      SMTP_HOST: ${SMTP_HOST}
+      SMTP_PORT: ${SMTP_PORT}
+      SMTP_USER: ${SMTP_USER}
+      SMTP_PASSWORD: ${SMTP_PASSWORD}
+      SMTP_FROM: ${SMTP_FROM}
+      
+      # AWS S3
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY}
+      AWS_S3_BUCKET: ${AWS_S3_BUCKET}
+      AWS_REGION: ${AWS_REGION:-us-east-1}
+    
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    
+    volumes:
+      - ./backend:/app
+      - celery_worker_logs:/app/logs
+      - backend_uploads:/app/uploads
+    
+    restart: always
+    
+    networks:
+      - viyapar-net
+    
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 1G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+    
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "5"
+        labels: "service=celery-worker"
+
+  # Celery Scheduler - Schedule periodic tasks
+  celery-scheduler:
+    build:
+      context: .
+      dockerfile: Dockerfile.prod
+    image: viyapar-backend:latest
+    container_name: viyapar-celery-scheduler-prod
+    command: celery -A app.celery_app beat --loglevel=info --scheduler django_celery_beat.schedulers:DatabaseScheduler
+    environment:
+      # Database
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-viyapar}:${POSTGRES_PASSWORD:-changeme}@postgres:5432/${POSTGRES_DB:-viyapar}
+      
+      # Redis/Cache
+      REDIS_URL: redis://:${REDIS_PASSWORD:-changeme}@redis:6379/0
+      
+      # Celery Configuration
+      CELERY_BROKER_URL: redis://:${REDIS_PASSWORD:-changeme}@redis:6379/0
+      CELERY_RESULT_BACKEND: redis://:${REDIS_PASSWORD:-changeme}@redis:6379/0
+      CELERY_TASK_SERIALIZER: json
+      CELERY_RESULT_SERIALIZER: json
+      CELERY_ACCEPT_CONTENT: json
+      CELERY_TIMEZONE: UTC
+      CELERY_ENABLE_UTC: "true"
+      
+      # Environment
+      ENVIRONMENT: production
+      DEBUG: "false"
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+    
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    
+    volumes:
+      - ./backend:/app
+      - celery_scheduler_logs:/app/logs
+    
+    restart: always
+    
+    networks:
+      - viyapar-net
+    
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+        reservations:
+          cpus: '0.25'
+          memory: 256M
+    
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "5"
+        labels: "service=celery-scheduler"
+
+  # Nginx Reverse Proxy - Production with SSL
+  nginx:
+    image: nginx:latest-alpine
+    container_name: viyapar-nginx-prod
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.prod.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/conf.d:/etc/nginx/conf.d:ro
+      - ./nginx/ssl:/etc/nginx/ssl:ro
+      - nginx_cache:/var/cache/nginx
+      - nginx_logs:/var/log/nginx
+    depends_on:
+      - backend
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    restart: always
+    networks:
+      - viyapar-net
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 512M
+        reservations:
+          cpus: '0.5'
+          memory: 256M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "5"
+        labels: "service=nginx"
+
+volumes:
+  postgres_data:
+    driver: local
+  postgres_backups:
+    driver: local
+  redis_data:
+    driver: local
+  backend_logs:
+    driver: local
+  backend_uploads:
+    driver: local
+  celery_worker_logs:
+    driver: local
+  celery_scheduler_logs:
+    driver: local
+  nginx_cache:
+    driver: local
+  nginx_logs:
+    driver: local
+
+networks:
+  viyapar-net:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16

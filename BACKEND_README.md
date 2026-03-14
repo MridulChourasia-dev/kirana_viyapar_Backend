@@ -38,10 +38,16 @@ uvicorn app.main:app --reload
 
 ## 📚 Documentation
 
-- **[Setup Guide](./BACKEND_SETUP_GUIDE.md)** - Installation and configuration
-- **[Architecture](./docs/BACKEND_ARCHITECTURE.md)** - Design patterns and structure
-- **[API Reference](./docs/API_REFERENCE.md)** - Complete endpoint documentation
-- **[Database Schema](./docs/DATABASE_SCHEMA.md)** -  Data model documentation
+Complete documentation is available in the `docs/` folder:
+
+- **[Development Guide](./docs/development-guide.md)** - Setup, installation, project structure, and common workflows
+- **[Architecture](./docs/BACKEND_ARCHITECTURE.md)** - Design patterns, clean architecture, and system design
+- **[API Reference](./docs/API_REFERENCE.md)** - Complete endpoint documentation with examples
+- **[Database Schema](./docs/DATABASE_SCHEMA.md)** - Data model, tables, and relationships
+- **[Deployment Guide](./docs/DEPLOYMENT_GUIDE.md)** - Production deployment, Docker, Kubernetes
+- **[Offline Sync Architecture](./docs/offline-sync-architecture.md)** - Mobile offline-first design
+- **[Offline Sync Setup](./docs/offline-sync-setup.md)** - Implementing offline capabilities
+- **[Reporting System](./docs/reporting-system.md)** - Business analytics and reporting features
 
 ## 🏗️ Architecture
 

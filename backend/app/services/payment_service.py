@@ -18,7 +18,7 @@ class PaymentService:
     @staticmethod
     async def create(tenant_id: str, payload: PaymentCreate, user_id: str, db: AsyncSession) -> PaymentResponse:
         # Load invoice
-        result = await db.execute(select(Invoice).where(Invoice.id == payload.invoice_id, Invoice.tenant_id == tenant_id))
+        result = await db.execute(select(Invoice).where(Invoice.id == payload.invoice_id, Invoice.business_id == tenant_id))
         invoice = result.scalar_one_or_none()
         if not invoice:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Invoice not found")
@@ -45,7 +45,7 @@ class PaymentService:
 
         # Create payment row
         payment = Payment(
-            tenant_id=tenant_id,
+            business_id=tenant_id,
             invoice_id=invoice.id,
             customer_id=invoice.customer_id,
             customer_name=invoice.customer_name,
@@ -68,7 +68,7 @@ class PaymentService:
 
     @staticmethod
     async def list_by_invoice(tenant_id: str, invoice_id: str, db: AsyncSession) -> PaymentListResponse:
-        q = select(Payment).where(Payment.tenant_id == tenant_id, Payment.invoice_id == invoice_id).order_by(Payment.created_at.desc())
+        q = select(Payment).where(Payment.business_id == tenant_id, Payment.invoice_id == invoice_id).order_by(Payment.created_at.desc())
         result = await db.execute(q)
         rows = result.scalars().all()
 
@@ -86,13 +86,13 @@ class PaymentService:
     @staticmethod
     async def customer_balance(tenant_id: str, customer_id: str, db: AsyncSession) -> CustomerBalanceResponse:
         # Fetch customer
-        cust_res = await db.execute(select(Customer).where(Customer.id == customer_id, Customer.tenant_id == tenant_id))
+        cust_res = await db.execute(select(Customer).where(Customer.id == customer_id, Customer.business_id == tenant_id))
         customer = cust_res.scalar_one_or_none()
         if not customer:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Customer not found")
 
         # Invoices for customer
-        inv_q = select(Invoice).where(Invoice.tenant_id == tenant_id, Invoice.customer_id == customer_id, Invoice.status != InvoiceStatus.CANCELLED).order_by(Invoice.invoice_date.desc())
+        inv_q = select(Invoice).where(Invoice.business_id == tenant_id, Invoice.customer_id == customer_id, Invoice.status != InvoiceStatus.CANCELLED).order_by(Invoice.invoice_date.desc())
         inv_res = await db.execute(inv_q)
         invoices = inv_res.scalars().all()
 
@@ -103,7 +103,7 @@ class PaymentService:
         overdue_amount = sum(float(i.amount_due) for i in invoices if i.status == InvoiceStatus.OVERDUE)
         last_payment_date = None
         # Find last payment date
-        pay_q = select(func.max(Payment.payment_date)).where(Payment.tenant_id == tenant_id, Payment.customer_id == customer_id)
+        pay_q = select(func.max(Payment.payment_date)).where(Payment.business_id == tenant_id, Payment.customer_id == customer_id)
         last_res = await db.execute(pay_q)
         last_payment_date = last_res.scalar_one_or_none()
 

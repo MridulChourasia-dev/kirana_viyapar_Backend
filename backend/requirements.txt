@@ -12,3 +12,6 @@ pytest
 httpx
 python-dateutil
 email-validator
+celery[redis]
+redis
+flower

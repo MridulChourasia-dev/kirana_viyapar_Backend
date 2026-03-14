@@ -31,7 +31,7 @@ class InventoryService:
         product.stock_quantity = stock_after
 
         movement = StockMovement(
-            tenant_id=tenant_id,
+            business_id=tenant_id,
             product_id=product.id,
             movement_type=MovementType.STOCK_IN,
             reason=payload.reason,
@@ -68,7 +68,7 @@ class InventoryService:
         product.stock_quantity = stock_after
 
         movement = StockMovement(
-            tenant_id=tenant_id,
+            business_id=tenant_id,
             product_id=product.id,
             movement_type=MovementType.STOCK_OUT,
             reason=payload.reason,
@@ -101,7 +101,7 @@ class InventoryService:
         movement_type = MovementType.ADJUSTMENT
 
         movement = StockMovement(
-            tenant_id=tenant_id,
+            business_id=tenant_id,
             product_id=product.id,
             movement_type=movement_type,
             reason=payload.reason,
@@ -131,7 +131,7 @@ class InventoryService:
         query = (
             select(StockMovement)
             .options(selectinload(StockMovement.product))
-            .where(StockMovement.tenant_id == tenant_id)
+            .where(StockMovement.business_id == tenant_id)
         )
 
         if product_id:
@@ -198,13 +198,13 @@ class InventoryService:
     @staticmethod
     async def get_dashboard(tenant_id: str, db: AsyncSession) -> InventoryDashboard:
         # Totals
-        total_q = select(func.count()).where(Product.tenant_id == tenant_id, Product.is_active == True)
+        total_q = select(func.count()).where(Product.business_id == tenant_id, Product.is_active == True)
         total_products = (await db.execute(total_q)).scalar() or 0
 
         # Stock value (sum of stock_quantity * purchase_price)
         value_q = select(
             func.sum(Product.stock_quantity * Product.purchase_price)
-        ).where(Product.tenant_id == tenant_id, Product.is_active == True)
+        ).where(Product.business_id == tenant_id, Product.is_active == True)
         total_stock_value = float((await db.execute(value_q)).scalar() or 0)
 
         # Low stock count
@@ -231,7 +231,7 @@ class InventoryService:
         recent_q = (
             select(StockMovement)
             .options(selectinload(StockMovement.product))
-            .where(StockMovement.tenant_id == tenant_id)
+            .where(StockMovement.business_id == tenant_id)
             .order_by(StockMovement.created_at.desc())
             .limit(10)
         )
@@ -252,7 +252,7 @@ class InventoryService:
     @staticmethod
     async def _get_product(tenant_id: str, product_id: str, db: AsyncSession) -> Product:
         result = await db.execute(
-            select(Product).where(Product.id == product_id, Product.tenant_id == tenant_id)
+            select(Product).where(Product.id == product_id, Product.business_id == tenant_id)
         )
         product = result.scalar_one_or_none()
         if not product:

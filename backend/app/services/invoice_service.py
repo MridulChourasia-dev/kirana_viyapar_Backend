@@ -85,7 +85,7 @@ class InvoiceService:
         for i in payload.items:
             calc = _calc_item(i, payload.is_igst)
             item_rows.append(InvoiceItem(
-                tenant_id=tenant_id,
+                business_id=tenant_id,
                 product_id=uuid.UUID(i.product_id) if i.product_id else None,
                 product_name=i.product_name,
                 hsn_code=i.hsn_code,
@@ -111,7 +111,7 @@ class InvoiceService:
         amount_due = round(grand_total, 2)
 
         invoice = Invoice(
-            tenant_id=tenant_id,
+            business_id=tenant_id,
             invoice_number=invoice_number,
             customer_id=uuid.UUID(payload.customer_id) if payload.customer_id else None,
             customer_name=payload.customer_name,
@@ -161,7 +161,7 @@ class InvoiceService:
     ) -> InvoiceListResponse:
         query = (
             select(Invoice)
-            .where(Invoice.tenant_id == tenant_id)
+            .where(Invoice.business_id == tenant_id)
         )
         if search:
             pat = f"%{search}%"
@@ -276,7 +276,7 @@ class InvoiceService:
         result = await db.execute(
             select(Invoice)
             .options(selectinload(Invoice.items))
-            .where(Invoice.id == invoice_id, Invoice.tenant_id == tenant_id)
+            .where(Invoice.id == invoice_id, Invoice.business_id == tenant_id)
         )
         invoice = result.scalar_one_or_none()
         if not invoice:

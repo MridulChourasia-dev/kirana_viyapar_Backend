@@ -1,4 +1,64 @@
-# Backend Architecture Documentation
+# Viyapar Backend Architecture
+
+## System Overview
+
+Viyapar is a modern, scalable SaaS billing and inventory management system built with FastAPI, designed for small to medium businesses to manage customers, invoices, inventory, and payments.
+
+## Architecture Overview
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                         Client Applications                      │
+│         (Web Portal, Mobile Apps, Third-party Integrations)      │
+└────────────────────┬────────────────────────────────────────────┘
+                     │ HTTP/HTTPS
+                     ├─ REST API with OpenAPI/Swagger
+                     └─ WebSocket (Real-time updates)
+┌────────────────────▼────────────────────────────────────────────┐
+│                      FastAPI Application Layer                   │
+├──────────────────────────────────────────────────────────────────┤
+│  ┌─────────────┐  ┌────────────┐  ┌──────────────────────────┐  │
+│  │   Routing   │  │ Middleware │  │  Authentication/Auth     │  │
+│  │  (v1 API)   │  │  (CORS)    │  │  (JWT, OAuth2)           │  │
+│  └─────────────┘  └────────────┘  └──────────────────────────┘  │
+│                                                                   │
+│  ┌────────────────────────────────────────────────────────────┐  │
+│  │              API Endpoint Groups (13 Tags)                 │  │
+│  ├─ Authentication     ├─ Invoices         ├─ Reports         │  │
+│  ├─ Customers         ├─ Payments         ├─ Settings        │  │
+│  ├─ Products          ├─ Inventory        ├─ Notifications   │  │
+│  ├─ Vendors           ├─ Expenses         ├─ Background Tasks│  │
+│  └─ Purchases         └────────────────────────────────────────┘  │
+│                                                                   │
+│  ┌─────────────────────────────────────────────────────────────┐  │
+│  │              Service Layer (Business Logic)                 │  │
+│  ├─ AuthService       ├─ InvoiceService      ├─ ReportService │  │
+│  ├─ CustomerService   ├─ PaymentService      ├─ SettingsService│ │
+│  ├─ ProductService    ├─ InventoryService    ├─ NotificationService│
+│  ├─ VendorService     ├─ ExpenseService      ├─ PurchaseService│  │
+│  └─ CategoryService   └─────────────────────────────────────────┘  │
+│                                                                   │
+│  ┌─────────────────────────────────────────────────────────────┐  │
+│  │              Data Validation Layer (Pydantic Schemas)       │  │
+│  │                                                             │  │
+│  │  Type-safe request/response models with automatic          │  │
+│  │  validation via Pydantic v2                               │  │
+│  └─────────────────────────────────────────────────────────────┘  │
+└────────────────────┬────────────────────────────────────────────┘
+                     │ Async I/O
+     ┌───────────────┼───────────────┬──────────────┐
+     │               │               │              │
+┌────▼──────┐    ┌───▼────────┐ ┌───▼────┐  ┌─────▼──────┐
+│ PostgreSQL │    │   Redis    │ │ Celery │  │ File Storage│
+│ Database   │    │   (Cache)  │ │ Queue  │  │  (S3/Local) │
+│            │    │            │ │        │  │             │
+│ - Tenants  │    │ - Sessions │ │ - Jobs │  │ - Invoices  │
+│ - Users    │    │ - Caching  │ │ - Tasks│  │ - Receipts  │
+│ - Products │    │            │ │        │  │ - Reports   │
+│ - Invoices │    └────────────┘ └────────┘  └─────────────┘
+│ - etc.     │
+└────────────┘
+``` Documentation
 
 ## Project Overview
 

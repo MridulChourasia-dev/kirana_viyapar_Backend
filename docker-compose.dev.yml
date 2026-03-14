@@ -1,0 +1,178 @@
+version: '3.8'
+
+# ─────────────────────────────────────────
+# Development Docker Compose Configuration
+# Includes: PostgreSQL, Redis, Celery Worker, Flower
+# ─────────────────────────────────────────
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: viyapar_postgres
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: viyapar
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./docker/init.sql:/docker-entrypoint-initdb.d/init.sql
+    health_check:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Redis Cache & Message Broker
+  redis:
+    image: redis:7-alpine
+    container_name: viyapar_redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
+    health_check:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # FastAPI Backend
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: viyapar_backend
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    ports:
+      - "8000:8000"
+    environment:
+      DATABASE_URL: postgresql+asyncpg://postgres:postgres@postgres:5432/viyapar
+      REDIS_URL: redis://redis:6379/0
+      CELERY_BROKER_URL: redis://redis:6379/0
+      CELERY_RESULT_BACKEND: redis://redis:6379/0
+      SECRET_KEY: dev-secret-key-change-in-production
+    volumes:
+      - .:/app
+      - ./uploads:/app/uploads
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Celery Worker - Default Queue
+  celery_default:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: viyapar_celery_default
+    command: celery -A app.workers.celery_app worker --queues=default --loglevel=info
+    environment:
+      DATABASE_URL: postgresql+asyncpg://postgres:postgres@postgres:5432/viyapar
+      REDIS_URL: redis://redis:6379/0
+      CELERY_BROKER_URL: redis://redis:6379/0
+      CELERY_RESULT_BACKEND: redis://redis:6379/0
+      SECRET_KEY: dev-secret-key-change-in-production
+    volumes:
+      - .:/app
+      - ./uploads:/app/uploads
+    depends_on:
+      - postgres
+      - redis
+      - backend
+
+  # Celery Worker - Email Queue
+  celery_email:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: viyapar_celery_email
+    command: celery -A app.workers.celery_app worker --queues=email --loglevel=info
+    environment:
+      DATABASE_URL: postgresql+asyncpg://postgres:postgres@postgres:5432/viyapar
+      REDIS_URL: redis://redis:6379/0
+      CELERY_BROKER_URL: redis://redis:6379/0
+      CELERY_RESULT_BACKEND: redis://redis:6379/0
+      SECRET_KEY: dev-secret-key-change-in-production
+    volumes:
+      - .:/app
+      - ./uploads:/app/uploads
+    depends_on:
+      - postgres
+      - redis
+      - backend
+
+  # Celery Worker - PDF Queue
+  celery_pdf:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: viyapar_celery_pdf
+    command: celery -A app.workers.celery_app worker --queues=pdf --loglevel=info
+    environment:
+      DATABASE_URL: postgresql+asyncpg://postgres:postgres@postgres:5432/viyapar
+      REDIS_URL: redis://redis:6379/0
+      CELERY_BROKER_URL: redis://redis:6379/0
+      CELERY_RESULT_BACKEND: redis://redis:6379/0
+      SECRET_KEY: dev-secret-key-change-in-production
+    volumes:
+      - .:/app
+      - ./uploads:/app/uploads
+    depends_on:
+      - postgres
+      - redis
+      - backend
+
+  # Celery Worker - Reports Queue
+  celery_reports:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: viyapar_celery_reports
+    command: celery -A app.workers.celery_app worker --queues=reports --loglevel=info
+    environment:
+      DATABASE_URL: postgresql+asyncpg://postgres:postgres@postgres:5432/viyapar
+      REDIS_URL: redis://redis:6379/0
+      CELERY_BROKER_URL: redis://redis:6379/0
+      CELERY_RESULT_BACKEND: redis://redis:6379/0
+      SECRET_KEY: dev-secret-key-change-in-production
+    volumes:
+      - .:/app
+      - ./uploads:/app/uploads
+    depends_on:
+      - postgres
+      - redis
+      - backend
+
+  # Flower - Task Monitoring UI
+  flower:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: viyapar_flower
+    command: celery -A app.workers.celery_app flower --port=5555
+    ports:
+      - "5555:5555"
+    environment:
+      CELERY_BROKER_URL: redis://redis:6379/0
+      CELERY_RESULT_BACKEND: redis://redis:6379/0
+    depends_on:
+      - redis
+      - celery_default
+      - celery_email
+      - celery_pdf
+      - celery_reports
+
+volumes:
+  postgres_data:
+  redis_data:

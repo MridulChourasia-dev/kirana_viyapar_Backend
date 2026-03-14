@@ -78,7 +78,7 @@ class ReportService:
                 COALESCE(SUM(CASE WHEN status = 'overdue'      THEN grand_total ELSE 0 END), 0) AS overdue_amount,
                 COALESCE(SUM(CASE WHEN status = 'cancelled'    THEN grand_total ELSE 0 END), 0) AS cancelled_amount
             FROM invoices
-            WHERE tenant_id = :tid
+            WHERE business_id = :tid
               AND status != 'cancelled'
               AND invoice_date >= :since
         """)
@@ -95,7 +95,7 @@ class ReportService:
                 TO_CHAR(DATE_TRUNC('month', invoice_date::date), 'YYYY-MM') AS month,
                 COALESCE(SUM(grand_total), 0)                                AS value
             FROM invoices
-            WHERE tenant_id = :tid
+            WHERE business_id = :tid
               AND status != 'cancelled'
               AND invoice_date >= :since
             GROUP BY 1
@@ -111,7 +111,7 @@ class ReportService:
                 COUNT(*)                    AS invoice_count,
                 COALESCE(SUM(grand_total), 0) AS total_revenue
             FROM invoices
-            WHERE tenant_id = :tid
+            WHERE business_id = :tid
               AND status != 'cancelled'
               AND invoice_date >= :since
             GROUP BY customer_name
@@ -136,7 +136,7 @@ class ReportService:
                 COALESCE(SUM(ii.line_total), 0)        AS total_revenue
             FROM invoice_items ii
             JOIN invoices inv ON inv.id = ii.invoice_id
-            WHERE inv.tenant_id = :tid
+            WHERE inv.business_id = :tid
               AND inv.status != 'cancelled'
               AND inv.invoice_date >= :since
             GROUP BY ii.product_name
@@ -202,7 +202,7 @@ class ReportService:
             FROM invoices inv
             JOIN invoice_items ii ON ii.invoice_id = inv.id
             LEFT JOIN products p  ON p.id = ii.product_id
-            WHERE inv.tenant_id = :tid
+            WHERE inv.business_id = :tid
               AND inv.status != 'cancelled'
               AND inv.invoice_date >= :since
         """)
@@ -222,7 +222,7 @@ class ReportService:
             FROM invoices inv
             JOIN invoice_items ii ON ii.invoice_id = inv.id
             LEFT JOIN products p  ON p.id = ii.product_id
-            WHERE inv.tenant_id = :tid
+            WHERE inv.business_id = :tid
               AND inv.status != 'cancelled'
               AND inv.invoice_date >= :since
             GROUP BY 1
@@ -291,7 +291,7 @@ class ReportService:
                 COALESCE(SUM(stock_quantity * purchase_price), 0)                         AS total_stock_value,
                 COALESCE(SUM(stock_quantity * sale_price), 0)                             AS total_retail_value
             FROM products
-            WHERE tenant_id = :tid
+            WHERE business_id = :tid
         """)
         kpi = (await db.execute(kpi_sql, {"tid": tid})).mappings().one()
 
@@ -304,7 +304,7 @@ class ReportService:
                 COALESCE(SUM(p.stock_quantity * p.purchase_price), 0) AS stock_value
             FROM products p
             LEFT JOIN categories c ON c.id = p.category_id
-            WHERE p.tenant_id = :tid
+            WHERE p.business_id = :tid
             GROUP BY COALESCE(c.name, 'Uncategorised')
             ORDER BY stock_value DESC
         """)
@@ -329,7 +329,7 @@ class ReportService:
                 COALESCE(c.name, 'Uncategorised')          AS category_name
             FROM products p
             LEFT JOIN categories c ON c.id = p.category_id
-            WHERE p.tenant_id = :tid
+            WHERE p.business_id = :tid
               AND p.stock_quantity <= p.low_stock_alert
               AND p.is_active = TRUE
             ORDER BY p.stock_quantity ASC
@@ -357,7 +357,7 @@ class ReportService:
             FROM invoice_items ii
             JOIN invoices inv         ON inv.id = ii.invoice_id
             LEFT JOIN products p      ON p.id = ii.product_id
-            WHERE inv.tenant_id = :tid
+            WHERE inv.business_id = :tid
               AND inv.status != 'cancelled'
               AND inv.invoice_date >= :since
             GROUP BY ii.product_name, p.sku, p.stock_quantity
@@ -383,7 +383,7 @@ class ReportService:
                 COALESCE(SUM(CASE WHEN movement_type = 'stock_in'  THEN quantity ELSE 0 END), 0) AS stock_in,
                 COALESCE(SUM(CASE WHEN movement_type = 'stock_out' THEN quantity ELSE 0 END), 0) AS stock_out
             FROM stock_movements
-            WHERE tenant_id = :tid
+            WHERE business_id = :tid
               AND created_at >= :since
         """)
         mov = (await db.execute(movement_sql, {"tid": tid, "since": now_str})).mappings().one()
@@ -401,3 +401,4 @@ class ReportService:
             stock_in_this_month=int(mov["stock_in"]),
             stock_out_this_month=int(mov["stock_out"]),
         )
+

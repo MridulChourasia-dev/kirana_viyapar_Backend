@@ -36,7 +36,7 @@ class AuthService:
             phone=payload.phone,
             password_hash=hash_password(payload.password),
             role=UserRole.OWNER,
-            tenant_id=business.id,
+            business_id=business.id,
         )
         db.add(user)
         await db.commit()
@@ -53,13 +53,14 @@ class AuthService:
         return AuthResponse(
             user=UserResponse(
                 id=str(user.id), email=user.email, name=user.name,
-                phone=user.phone, role=user.role.value, tenant_id=str(user.tenant_id),
+                phone=user.phone, role=user.role.value, business_id=str(user.business_id),
             ),
             business=BusinessResponse(
                 id=str(business.id), name=business.name, phone=business.phone,
-                email=business.email, gst_number=business.gst_number,
+                email=business.email, gstin=business.gstin,
                 address=business.address, city=business.city, state=business.state,
-                pincode=business.pincode, logo_url=business.logo_url,
+                pincode=business.pincode, pan=business.pan, logo_url=business.logo_url,
+                description=business.description, country=business.country,
             ),
             tokens=tokens,
         )
@@ -83,7 +84,7 @@ class AuthService:
             )
 
         # Load business
-        result = await db.execute(select(Business).where(Business.id == user.tenant_id))
+        result = await db.execute(select(Business).where(Business.id == user.business_id))
         business = result.scalar_one()
 
         # Generate tokens
@@ -96,13 +97,14 @@ class AuthService:
         return AuthResponse(
             user=UserResponse(
                 id=str(user.id), email=user.email, name=user.name,
-                phone=user.phone, role=user.role.value, tenant_id=str(user.tenant_id),
+                phone=user.phone, role=user.role.value, business_id=str(user.business_id),
             ),
             business=BusinessResponse(
                 id=str(business.id), name=business.name, phone=business.phone,
-                email=business.email, gst_number=business.gst_number,
+                email=business.email, gstin=business.gstin,
                 address=business.address, city=business.city, state=business.state,
-                pincode=business.pincode, logo_url=business.logo_url,
+                pincode=business.pincode, pan=business.pan, logo_url=business.logo_url,
+                description=business.description, country=business.country,
             ),
             tokens=tokens,
         )
@@ -140,5 +142,5 @@ class AuthService:
 
         return UserResponse(
             id=str(user.id), email=user.email, name=user.name,
-            phone=user.phone, role=user.role.value, tenant_id=str(user.tenant_id),
+            phone=user.phone, role=user.role.value, business_id=str(user.business_id),
         )

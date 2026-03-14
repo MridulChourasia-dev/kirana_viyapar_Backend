@@ -16,7 +16,7 @@ class CustomerService:
 
     @staticmethod
     async def create(tenant_id: str, payload: CustomerCreate, db: AsyncSession) -> CustomerResponse:
-        customer = Customer(tenant_id=tenant_id, **payload.model_dump())
+        customer = Customer(business_id=tenant_id, **payload.model_dump())
         db.add(customer)
         await db.commit()
         await db.refresh(customer)
@@ -30,7 +30,7 @@ class CustomerService:
         per_page: int = 20,
         search: str | None = None,
     ) -> CustomerListResponse:
-        query = select(Customer).where(Customer.tenant_id == tenant_id)
+        query = select(Customer).where(Customer.business_id == tenant_id)
 
         # Search by name, phone, or email
         if search:
@@ -94,7 +94,7 @@ class CustomerService:
         result = await db.execute(
             select(Customer).where(
                 Customer.id == customer_id,
-                Customer.tenant_id == tenant_id,
+                Customer.business_id == tenant_id,
             )
         )
         customer = result.scalar_one_or_none()
@@ -106,14 +106,16 @@ class CustomerService:
     def _to_response(customer: Customer) -> CustomerResponse:
         return CustomerResponse(
             id=str(customer.id),
+            business_id=customer.business_id,
             name=customer.name,
             phone=customer.phone,
             email=customer.email,
-            gst_number=customer.gst_number,
+            gstin=customer.gstin,
             billing_address=customer.billing_address,
             shipping_address=customer.shipping_address,
             city=customer.city,
             state=customer.state,
+            country=customer.country,
             pincode=customer.pincode,
             balance=float(customer.balance),
             notes=customer.notes,

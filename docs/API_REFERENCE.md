@@ -1,23 +1,70 @@
-# API Reference Documentation
+# API Reference Guide
 
 ## Base URL
+
 ```
-http://localhost:8000/api/v1
+Development:  http://localhost:8000
+Production:   https://api.viyapar.com
+API Version:  v1
+Base Path:    /api/v1
 ```
 
 ## Authentication
 
-All protected endpoints require JWT token in Authorization header:
-```
-Authorization: Bearer <access_token>
+### Overview
+
+Viyapar uses JWT (JSON Web Token) based authentication with Bearer scheme. All protected endpoints require an `Authorization` header with a valid JWT token.
+
+### Token Types
+
+| Token | Expires | Use Case |
+|-------|---------|----------|
+| Access Token | 30 minutes | API request authentication |
+| Refresh Token | 7 days | Obtain new access token without re-login |
+
+### Getting Started
+
+#### 1. Register a Business Account
+
+```http
+POST /api/v1/auth/register
+Content-Type: application/json
+
+{
+  "business_name": "Acme Corp",
+  "email": "admin@acme.com",
+  "password": "SecurePassword123!",
+  "phone": "+919876543210"
+}
 ```
 
-## Response Format
-
-### Success Response (2xx)
+**Response (201 Created):**
 ```json
 {
-  "success": true,
+  "id": "550e8400-e29b-41d4-a716-446655440000",
+  "email": "admin@acme.com",
+  "business_name": "Acme Corp",
+  "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "refresh_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "token_type": "bearer"
+}
+```
+
+#### 2. Login to Existing Account
+
+```http
+POST /api/v1/auth/login
+Content-Type: application/json
+
+{
+  "email": "admin@acme.com",
+  "password": "SecurePassword123!"
+}
+```
+
+#### 3. Using Access Token
+
+All subsequent requests must include:
   "data": {...},
   "message": "Operation successful"
 }
