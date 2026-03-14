@@ -35,7 +35,7 @@ class AuthService:
             name=payload.name,
             phone=payload.phone,
             password_hash=hash_password(payload.password),
-            role=UserRole.OWNER,
+            role="owner",  # Changed from UserRole.OWNER to plain string
             business_id=business.id,
         )
         db.add(user)
@@ -44,7 +44,7 @@ class AuthService:
         await db.refresh(business)
 
         # Generate tokens
-        token_data = {"sub": str(user.id), "tenant_id": str(business.id), "role": user.role.value}
+        token_data = {"sub": str(user.id), "tenant_id": str(business.id), "role": user.role}  # Changed from user.role.value to user.role
         tokens = TokenResponse(
             access_token=create_access_token(token_data),
             refresh_token=create_refresh_token(token_data),
@@ -53,7 +53,7 @@ class AuthService:
         return AuthResponse(
             user=UserResponse(
                 id=str(user.id), email=user.email, name=user.name,
-                phone=user.phone, role=user.role.value, business_id=str(user.business_id),
+                phone=user.phone, role=user.role, business_id=str(user.business_id),  # Changed from user.role.value to user.role
             ),
             business=BusinessResponse(
                 id=str(business.id), name=business.name, phone=business.phone,
@@ -88,7 +88,7 @@ class AuthService:
         business = result.scalar_one()
 
         # Generate tokens
-        token_data = {"sub": str(user.id), "tenant_id": str(business.id), "role": user.role.value}
+        token_data = {"sub": str(user.id), "tenant_id": str(business.id), "role": user.role}
         tokens = TokenResponse(
             access_token=create_access_token(token_data),
             refresh_token=create_refresh_token(token_data),
@@ -97,7 +97,7 @@ class AuthService:
         return AuthResponse(
             user=UserResponse(
                 id=str(user.id), email=user.email, name=user.name,
-                phone=user.phone, role=user.role.value, business_id=str(user.business_id),
+                phone=user.phone, role=user.role, business_id=str(user.business_id),
             ),
             business=BusinessResponse(
                 id=str(business.id), name=business.name, phone=business.phone,
@@ -125,7 +125,7 @@ class AuthService:
             if not user or not user.is_active:
                 raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found")
 
-            token_data = {"sub": str(user.id), "tenant_id": tenant_id, "role": user.role.value}
+            token_data = {"sub": str(user.id), "tenant_id": tenant_id, "role": user.role}
             return TokenResponse(
                 access_token=create_access_token(token_data),
                 refresh_token=create_refresh_token(token_data),
@@ -142,5 +142,5 @@ class AuthService:
 
         return UserResponse(
             id=str(user.id), email=user.email, name=user.name,
-            phone=user.phone, role=user.role.value, business_id=str(user.business_id),
+            phone=user.phone, role=user.role, business_id=str(user.business_id),
         )

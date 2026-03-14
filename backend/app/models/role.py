@@ -61,7 +61,7 @@ class Role(Base):
     is_active: Mapped[bool] = mapped_column(default=True, nullable=False)
 
     # Relationships
-    business: Mapped["Business"] = relationship("Business")
+    business: Mapped["Business"] = relationship("Business", back_populates="roles")
     permissions: Mapped[list["Permission"]] = relationship(
         "Permission", secondary="role_permission", back_populates="roles"
     )

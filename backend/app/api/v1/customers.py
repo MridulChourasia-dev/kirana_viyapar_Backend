@@ -122,6 +122,24 @@ async def update_customer(
     """
     return await CustomerService.update(user.tenant_id, customer_id, payload, db)
 
+
+@router.put(
+    "/{customer_id}",
+    response_model=CustomerResponse,
+    summary="Update Customer (PUT Alias)",
+    description="Compatibility alias for full customer update via PUT",
+    responses=RESPONSES_UPDATE,
+)
+async def update_customer_put(
+    customer_id: str = Path(..., description="Customer ID (UUID)"),
+    *,
+    payload: CustomerUpdate,
+    user: TokenData = Depends(get_current_user_context),
+    db: AsyncSession = Depends(get_db),
+):
+    """Compatibility alias for clients using PUT instead of PATCH."""
+    return await CustomerService.update(user.tenant_id, customer_id, payload, db)
+
 @router.delete(
     "/{customer_id}",
     status_code=status.HTTP_204_NO_CONTENT,

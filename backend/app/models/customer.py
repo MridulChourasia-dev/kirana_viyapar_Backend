@@ -15,7 +15,10 @@ class Customer(Base):
     """
 
     __tablename__ = "customer"
-    __table_args__ = (UniqueConstraint("business_id", "phone", name="uq_business_customer_phone"),)
+    __table_args__ = (
+        UniqueConstraint("business_id", "phone", name="uq_business_customer_phone"),
+        UniqueConstraint("business_id", "email", name="uq_business_customer_email"),
+    )
 
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
     business_id: Mapped[uuid.UUID] = mapped_column(

@@ -51,7 +51,7 @@ class Vendor(Base):
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     # Relationships
-    business: Mapped["Business"] = relationship("Business")
+    business: Mapped["Business"] = relationship("Business", back_populates="vendors")
     purchases: Mapped[list["Purchase"]] = relationship(
         "Purchase", back_populates="vendor", cascade="all, delete-orphan"
     )

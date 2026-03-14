@@ -5,7 +5,7 @@ import enum
 import uuid
 from datetime import date
 
-from sqlalchemy import Boolean, Enum as SQLEnum, ForeignKey, Integer, Numeric, String, Text
+from sqlalchemy import Boolean, ForeignKey, Integer, Numeric, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base_class import Base
@@ -58,9 +58,7 @@ class Invoice(Base):
     billing_address: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     # Status & Dates
-    status: Mapped[InvoiceStatus] = mapped_column(
-        SQLEnum(InvoiceStatus), default=InvoiceStatus.DRAFT, nullable=False
-    )
+    status: Mapped[str] = mapped_column(String(50), default=InvoiceStatus.DRAFT.value, nullable=False)
     invoice_date: Mapped[date] = mapped_column(nullable=False)
     due_date: Mapped[date | None] = mapped_column(nullable=True)
 
@@ -79,9 +77,7 @@ class Invoice(Base):
     is_igst: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
 
     # Payment
-    payment_mode: Mapped[PaymentMode] = mapped_column(
-        SQLEnum(PaymentMode), default=PaymentMode.CASH, nullable=False
-    )
+    payment_mode: Mapped[str] = mapped_column(String(50), default=PaymentMode.CASH.value, nullable=False)
 
     # Notes
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)

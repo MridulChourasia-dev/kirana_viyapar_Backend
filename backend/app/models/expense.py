@@ -27,7 +27,7 @@ class ExpenseCategory(Base):
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     # Relationships
-    business: Mapped["Business"] = relationship("Business")
+    business: Mapped["Business"] = relationship("Business", back_populates="expense_categories")
     expenses: Mapped[list["Expense"]] = relationship(
         "Expense", back_populates="category", cascade="all, delete-orphan"
     )
@@ -71,7 +71,7 @@ class Expense(Base):
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     # Relationships
-    business: Mapped["Business"] = relationship("Business")
+    business: Mapped["Business"] = relationship("Business", back_populates="expenses")
     category: Mapped["ExpenseCategory"] = relationship("ExpenseCategory", back_populates="expenses")
     vendor: Mapped["Vendor | None"] = relationship("Vendor")
 

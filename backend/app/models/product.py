@@ -1,28 +1,12 @@
 """
 Product model - business products/inventory
 """
-import enum
 import uuid
 
-from sqlalchemy import Boolean, Enum as SQLEnum, ForeignKey, Integer, Numeric, String, Text, UniqueConstraint
+from sqlalchemy import Boolean, ForeignKey, Integer, Numeric, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base_class import Base
-
-
-class ProductUnit(str, enum.Enum):
-    """Product measurement units"""
-
-    PIECE = "piece"
-    KG = "kg"
-    GRAM = "gram"
-    LITRE = "litre"
-    METRE = "metre"
-    BOX = "box"
-    DOZEN = "dozen"
-    PAIR = "pair"
-    SET = "set"
-    OTHER = "other"
 
 
 class Product(Base):
@@ -55,9 +39,7 @@ class Product(Base):
     # Inventory
     stock_quantity: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     low_stock_alert: Mapped[int] = mapped_column(Integer, default=10, nullable=False)
-    unit: Mapped[ProductUnit] = mapped_column(
-        SQLEnum(ProductUnit), default=ProductUnit.PIECE, nullable=False
-    )
+    unit: Mapped[str] = mapped_column(String(50), default="piece", nullable=False)
 
     # Media
     image_url: Mapped[str | None] = mapped_column(String(500), nullable=True)

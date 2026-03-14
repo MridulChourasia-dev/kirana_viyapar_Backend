@@ -19,11 +19,12 @@ class Settings(BaseSettings):
     VERSION: str = "1.0.0"
 
     # Database Configuration
-    POSTGRES_SERVER: str = "localhost"
+    POSTGRES_SERVER: str = "db"
     POSTGRES_USER: str = "postgres"
     POSTGRES_PASSWORD: str = "postgres"
     POSTGRES_DB: str = "viyapar"
     DATABASE_ECHO: bool = False
+    DATABASE_URL: Optional[str] = None
 
     # Redis Configuration (Optional)
     REDIS_URL: Optional[str] = None
@@ -48,6 +49,13 @@ class Settings(BaseSettings):
     @property
     def ASYNC_DATABASE_URL(self) -> str:
         """Construct async database URL for SQLAlchemy"""
+        # Use DATABASE_URL env var if provided (Docker), otherwise construct from components
+        if self.DATABASE_URL:
+            # Ensure it uses asyncpg driver
+            if "asyncpg" not in self.DATABASE_URL:
+                return self.DATABASE_URL.replace("postgresql://", "postgresql+asyncpg://")
+            return self.DATABASE_URL
+        
         return (
             f"postgresql+asyncpg://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}"
             f"@{self.POSTGRES_SERVER}/{self.POSTGRES_DB}"

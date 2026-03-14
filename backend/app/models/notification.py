@@ -35,7 +35,7 @@ class Notification(Base):
         ForeignKey("business.id", ondelete="CASCADE"), nullable=False, index=True
     )
     user_id: Mapped[uuid.UUID] = mapped_column(
-        ForeignKey("user.id", ondelete="CASCADE"), nullable=False, index=True
+        ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
     )
 
     # Notification content
@@ -61,8 +61,8 @@ class Notification(Base):
     send_push: Mapped[bool] = mapped_column(default=True, nullable=False)
 
     # Relationships
-    business: Mapped["Business"] = relationship("Business")
-    user: Mapped["User"] = relationship("User")
+    business: Mapped["Business"] = relationship("Business", back_populates="notifications")
+    user: Mapped["User"] = relationship("User", foreign_keys=[user_id])
 
     def __repr__(self) -> str:
         return f"<Notification {self.title}>"

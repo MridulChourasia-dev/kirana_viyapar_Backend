@@ -62,7 +62,7 @@ class CustomerResponse(BaseModel):
     updated_at: datetime
 
 
-class CustomerListResponse(BaseModel):
+class CustomerListItemResponse(BaseModel):
     """Customer list item response"""
 
     model_config = ConfigDict(from_attributes=True)
@@ -73,6 +73,16 @@ class CustomerListResponse(BaseModel):
     email: str | None
     city: str | None
     balance: float
+
+
+class CustomerListResponse(BaseModel):
+    """Paginated customer list response"""
+    
+    data: list[CustomerListItemResponse]
+    total: int
+    page: int
+    per_page: int
+    total_pages: int
 
 
 # Aliases for backward compatibility

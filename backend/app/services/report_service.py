@@ -60,7 +60,7 @@ class ReportService:
 
         tid = str(tenant_id)
         since = datetime.now(timezone.utc) - relativedelta(months=months)
-        since_str = since.strftime("%Y-%m-%d")
+        since_date = since.date()
 
         # ── KPIs ──
         kpi_sql = text("""
@@ -77,12 +77,12 @@ class ReportService:
                 COALESCE(SUM(CASE WHEN status = 'partially_paid' THEN grand_total ELSE 0 END), 0) AS partially_paid_amount,
                 COALESCE(SUM(CASE WHEN status = 'overdue'      THEN grand_total ELSE 0 END), 0) AS overdue_amount,
                 COALESCE(SUM(CASE WHEN status = 'cancelled'    THEN grand_total ELSE 0 END), 0) AS cancelled_amount
-            FROM invoices
+            FROM invoice
             WHERE business_id = :tid
               AND status != 'cancelled'
               AND invoice_date >= :since
         """)
-        kpi = (await db.execute(kpi_sql, {"tid": tid, "since": since_str})).mappings().one()
+        kpi = (await db.execute(kpi_sql, {"tid": tid, "since": since_date})).mappings().one()
 
         total_revenue = float(kpi["total_revenue"] or 0)
         total_paid = float(kpi["total_paid"] or 0)
@@ -94,14 +94,14 @@ class ReportService:
             SELECT
                 TO_CHAR(DATE_TRUNC('month', invoice_date::date), 'YYYY-MM') AS month,
                 COALESCE(SUM(grand_total), 0)                                AS value
-            FROM invoices
+            FROM invoice
             WHERE business_id = :tid
               AND status != 'cancelled'
               AND invoice_date >= :since
             GROUP BY 1
             ORDER BY 1
         """)
-        monthly_rows = (await db.execute(monthly_sql, {"tid": tid, "since": since_str})).mappings().all()
+        monthly_rows = (await db.execute(monthly_sql, {"tid": tid, "since": since_date})).mappings().all()
         monthly_revenue = _build_month_series(monthly_rows, "value", months)
 
         # ── Top Customers ──
@@ -110,7 +110,7 @@ class ReportService:
                 customer_name,
                 COUNT(*)                    AS invoice_count,
                 COALESCE(SUM(grand_total), 0) AS total_revenue
-            FROM invoices
+            FROM invoice
             WHERE business_id = :tid
               AND status != 'cancelled'
               AND invoice_date >= :since
@@ -118,7 +118,7 @@ class ReportService:
             ORDER BY total_revenue DESC
             LIMIT 10
         """)
-        cust_rows = (await db.execute(cust_sql, {"tid": tid, "since": since_str})).mappings().all()
+        cust_rows = (await db.execute(cust_sql, {"tid": tid, "since": since_date})).mappings().all()
         top_customers = [
             TopCustomer(
                 customer_name=r["customer_name"],
@@ -134,8 +134,8 @@ class ReportService:
                 ii.product_name,
                 COALESCE(SUM(ii.quantity), 0)         AS quantity_sold,
                 COALESCE(SUM(ii.line_total), 0)        AS total_revenue
-            FROM invoice_items ii
-            JOIN invoices inv ON inv.id = ii.invoice_id
+                        FROM invoice_item ii
+            JOIN invoice inv ON inv.id = ii.invoice_id
             WHERE inv.business_id = :tid
               AND inv.status != 'cancelled'
               AND inv.invoice_date >= :since
@@ -143,7 +143,7 @@ class ReportService:
             ORDER BY total_revenue DESC
             LIMIT 10
         """)
-        prod_rows = (await db.execute(prod_sql, {"tid": tid, "since": since_str})).mappings().all()
+        prod_rows = (await db.execute(prod_sql, {"tid": tid, "since": since_date})).mappings().all()
         top_products = [
             TopProduct(
                 product_name=r["product_name"],
@@ -185,7 +185,7 @@ class ReportService:
 
         tid = str(tenant_id)
         since = datetime.now(timezone.utc) - relativedelta(months=months)
-        since_str = since.strftime("%Y-%m-%d")
+        since_date = since.date()
 
         # ── Totals ──
         totals_sql = text("""
@@ -199,14 +199,14 @@ class ReportService:
                 COALESCE(SUM(
                     ii.quantity * COALESCE(p.purchase_price, 0)
                 ), 0)                                    AS total_cogs
-            FROM invoices inv
-            JOIN invoice_items ii ON ii.invoice_id = inv.id
-            LEFT JOIN products p  ON p.id = ii.product_id
+            FROM invoice inv
+            JOIN invoice_item ii ON ii.invoice_id = inv.id
+            LEFT JOIN product p  ON p.id = ii.product_id
             WHERE inv.business_id = :tid
               AND inv.status != 'cancelled'
               AND inv.invoice_date >= :since
         """)
-        totals = (await db.execute(totals_sql, {"tid": tid, "since": since_str})).mappings().one()
+        totals = (await db.execute(totals_sql, {"tid": tid, "since": since_date})).mappings().one()
 
         total_revenue = float(totals["total_revenue"] or 0)
         total_cogs = float(totals["total_cogs"] or 0)
@@ -219,16 +219,16 @@ class ReportService:
                 TO_CHAR(DATE_TRUNC('month', inv.invoice_date::date), 'YYYY-MM') AS month,
                 COALESCE(SUM(inv.grand_total), 0)                               AS revenue,
                 COALESCE(SUM(ii.quantity * COALESCE(p.purchase_price, 0)), 0)   AS cogs
-            FROM invoices inv
-            JOIN invoice_items ii ON ii.invoice_id = inv.id
-            LEFT JOIN products p  ON p.id = ii.product_id
+            FROM invoice inv
+                        JOIN invoice_item ii ON ii.invoice_id = inv.id
+                        LEFT JOIN product p  ON p.id = ii.product_id
             WHERE inv.business_id = :tid
               AND inv.status != 'cancelled'
               AND inv.invoice_date >= :since
             GROUP BY 1
             ORDER BY 1
         """)
-        monthly_rows = (await db.execute(monthly_pnl_sql, {"tid": tid, "since": since_str})).mappings().all()
+        monthly_rows = (await db.execute(monthly_pnl_sql, {"tid": tid, "since": since_date})).mappings().all()
 
         # Build complete month series
         now = datetime.now(timezone.utc)
@@ -290,7 +290,7 @@ class ReportService:
                 COALESCE(SUM(CASE WHEN stock_quantity = 0 THEN 1 ELSE 0 END), 0)         AS out_of_stock_count,
                 COALESCE(SUM(stock_quantity * purchase_price), 0)                         AS total_stock_value,
                 COALESCE(SUM(stock_quantity * sale_price), 0)                             AS total_retail_value
-            FROM products
+            FROM product
             WHERE business_id = :tid
         """)
         kpi = (await db.execute(kpi_sql, {"tid": tid})).mappings().one()
@@ -302,8 +302,8 @@ class ReportService:
                 COUNT(p.id)                                AS product_count,
                 COALESCE(SUM(p.stock_quantity), 0)         AS total_stock,
                 COALESCE(SUM(p.stock_quantity * p.purchase_price), 0) AS stock_value
-            FROM products p
-            LEFT JOIN categories c ON c.id = p.category_id
+            FROM product p
+            LEFT JOIN category c ON c.id = p.category_id
             WHERE p.business_id = :tid
             GROUP BY COALESCE(c.name, 'Uncategorised')
             ORDER BY stock_value DESC
@@ -327,8 +327,8 @@ class ReportService:
                 p.stock_quantity,
                 p.low_stock_alert,
                 COALESCE(c.name, 'Uncategorised')          AS category_name
-            FROM products p
-            LEFT JOIN categories c ON c.id = p.category_id
+                        FROM product p
+                        LEFT JOIN category c ON c.id = p.category_id
             WHERE p.business_id = :tid
               AND p.stock_quantity <= p.low_stock_alert
               AND p.is_active = TRUE
@@ -354,9 +354,9 @@ class ReportService:
                 p.sku,
                 COALESCE(SUM(ii.quantity), 0)  AS total_sold,
                 COALESCE(p.stock_quantity, 0)  AS stock_quantity
-            FROM invoice_items ii
-            JOIN invoices inv         ON inv.id = ii.invoice_id
-            LEFT JOIN products p      ON p.id = ii.product_id
+                        FROM invoice_item ii
+            JOIN invoice inv         ON inv.id = ii.invoice_id
+                        LEFT JOIN product p      ON p.id = ii.product_id
             WHERE inv.business_id = :tid
               AND inv.status != 'cancelled'
               AND inv.invoice_date >= :since
@@ -364,7 +364,7 @@ class ReportService:
             ORDER BY total_sold DESC
             LIMIT 10
         """)
-        since_30 = (datetime.now(timezone.utc) - relativedelta(months=3)).strftime("%Y-%m-%d")
+        since_30 = (datetime.now(timezone.utc) - relativedelta(months=3)).date()
         fast_rows = (await db.execute(fast_sql, {"tid": tid, "since": since_30})).mappings().all()
         fast_moving_products = [
             FastMovingProduct(
@@ -377,12 +377,12 @@ class ReportService:
         ]
 
         # ── Stock movements this month ──
-        now_str = datetime.now(timezone.utc).strftime("%Y-%m-01")
+        now_str = datetime.now(timezone.utc).replace(day=1)
         movement_sql = text("""
             SELECT
                 COALESCE(SUM(CASE WHEN movement_type = 'stock_in'  THEN quantity ELSE 0 END), 0) AS stock_in,
                 COALESCE(SUM(CASE WHEN movement_type = 'stock_out' THEN quantity ELSE 0 END), 0) AS stock_out
-            FROM stock_movements
+            FROM stock_movement
             WHERE business_id = :tid
               AND created_at >= :since
         """)

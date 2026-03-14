@@ -1,7 +1,8 @@
 import uuid
-from datetime import datetime
+from datetime import datetime, date
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 from fastapi import HTTPException, status
 
 from app.models.payment import Payment, PaymentMethod
@@ -31,9 +32,9 @@ class PaymentService:
         invoice.amount_paid = round(float(invoice.amount_paid) + amount, 2)
         invoice.amount_due = round(float(invoice.grand_total) - float(invoice.amount_paid), 2)
         if invoice.amount_due <= 0:
-            invoice.status = InvoiceStatus.PAID
+            invoice.status = InvoiceStatus.PAID.value
         elif invoice.amount_paid > 0:
-            invoice.status = InvoiceStatus.PARTIALLY_PAID
+            invoice.status = InvoiceStatus.PARTIALLY_PAID.value
 
         # Update customer balance snapshot
         customer = None
@@ -48,11 +49,10 @@ class PaymentService:
             business_id=tenant_id,
             invoice_id=invoice.id,
             customer_id=invoice.customer_id,
-            customer_name=invoice.customer_name,
             amount=amount,
             method=payload.method,
             reference=payload.reference,
-            payment_date=payload.payment_date,
+            payment_date=date.fromisoformat(payload.payment_date),
             notes=payload.notes,
             invoice_number=invoice.invoice_number,
             invoice_total=float(invoice.grand_total),
@@ -62,13 +62,18 @@ class PaymentService:
 
         db.add(payment)
         await db.commit()
-        await db.refresh(payment)
+        await db.refresh(payment, attribute_names=["invoice"])
 
         return PaymentService._to_response(payment)
 
     @staticmethod
     async def list_by_invoice(tenant_id: str, invoice_id: str, db: AsyncSession) -> PaymentListResponse:
-        q = select(Payment).where(Payment.business_id == tenant_id, Payment.invoice_id == invoice_id).order_by(Payment.created_at.desc())
+        q = (
+            select(Payment)
+            .options(selectinload(Payment.invoice))
+            .where(Payment.business_id == tenant_id, Payment.invoice_id == invoice_id)
+            .order_by(Payment.created_at.desc())
+        )
         result = await db.execute(q)
         rows = result.scalars().all()
 
@@ -82,6 +87,41 @@ class PaymentService:
             total_paid=round(total_paid, 2),
             total_outstanding=round(total_outstanding, 2),
         )
+
+    @staticmethod
+    async def list_all(tenant_id: str, db: AsyncSession) -> PaymentListResponse:
+        q = (
+            select(Payment)
+            .options(selectinload(Payment.invoice))
+            .where(Payment.business_id == tenant_id)
+            .order_by(Payment.created_at.desc())
+        )
+        result = await db.execute(q)
+        rows = result.scalars().all()
+
+        total = len(rows)
+        total_paid = sum(float(r.amount) for r in rows)
+        total_outstanding = 0.0
+
+        return PaymentListResponse(
+            data=[PaymentService._to_response(r) for r in rows],
+            total=total,
+            total_paid=round(total_paid, 2),
+            total_outstanding=round(total_outstanding, 2),
+        )
+
+    @staticmethod
+    async def get_by_id(tenant_id: str, payment_id: str, db: AsyncSession) -> PaymentResponse:
+        q = (
+            select(Payment)
+            .options(selectinload(Payment.invoice))
+            .where(Payment.business_id == tenant_id, Payment.id == payment_id)
+        )
+        result = await db.execute(q)
+        payment = result.scalar_one_or_none()
+        if not payment:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Payment not found")
+        return PaymentService._to_response(payment)
 
     @staticmethod
     async def customer_balance(tenant_id: str, customer_id: str, db: AsyncSession) -> CustomerBalanceResponse:
@@ -136,15 +176,16 @@ class PaymentService:
 
     @staticmethod
     def _to_response(payment: Payment) -> PaymentResponse:
+        customer_name = payment.invoice.customer_name if payment.invoice else ""
         return PaymentResponse(
             id=str(payment.id),
             invoice_id=str(payment.invoice_id),
             customer_id=str(payment.customer_id) if payment.customer_id else None,
-            customer_name=payment.customer_name,
+            customer_name=customer_name,
             amount=float(payment.amount),
             method=payment.method.value if hasattr(payment.method, 'value') else payment.method,
             reference=payment.reference,
-            payment_date=payment.payment_date,
+            payment_date=payment.payment_date.isoformat() if payment.payment_date else None,
             notes=payment.notes,
             invoice_number=payment.invoice_number,
             invoice_total=float(payment.invoice_total),

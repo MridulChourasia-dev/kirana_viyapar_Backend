@@ -50,31 +50,31 @@ class Business(Base):
         "StockMovement", back_populates="business", cascade="all, delete-orphan"
     )
     vendors: Mapped[list["Vendor"]] = relationship(
-        "Vendor", cascade="all, delete-orphan"
+        "Vendor", back_populates="business", cascade="all, delete-orphan"
     )
     purchases: Mapped[list["Purchase"]] = relationship(
-        "Purchase", cascade="all, delete-orphan"
+        "Purchase", back_populates="business", cascade="all, delete-orphan"
     )
     purchase_items: Mapped[list["PurchaseItem"]] = relationship(
-        "PurchaseItem", cascade="all, delete-orphan"
+        "PurchaseItem", back_populates="business", cascade="all, delete-orphan"
     )
     expense_categories: Mapped[list["ExpenseCategory"]] = relationship(
-        "ExpenseCategory", cascade="all, delete-orphan"
+        "ExpenseCategory", back_populates="business", cascade="all, delete-orphan"
     )
     expenses: Mapped[list["Expense"]] = relationship(
-        "Expense", cascade="all, delete-orphan"
+        "Expense", back_populates="business", cascade="all, delete-orphan"
     )
     roles: Mapped[list["Role"]] = relationship(
-        "Role", cascade="all, delete-orphan"
+        "Role", back_populates="business", cascade="all, delete-orphan"
     )
     audit_logs: Mapped[list["AuditLog"]] = relationship(
-        "AuditLog", cascade="all, delete-orphan"
+        "AuditLog", back_populates="business", cascade="all, delete-orphan"
     )
     notifications: Mapped[list["Notification"]] = relationship(
-        "Notification", cascade="all, delete-orphan"
+        "Notification", back_populates="business", cascade="all, delete-orphan"
     )
     settings: Mapped[list["Settings"]] = relationship(
-        "Settings", cascade="all, delete-orphan"
+        "Settings", back_populates="business", cascade="all, delete-orphan"
     )
 
     def __repr__(self) -> str:

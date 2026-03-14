@@ -2,6 +2,7 @@
 Main FastAPI application entry point
 """
 from fastapi import FastAPI
+from fastapi.responses import RedirectResponse
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.v1.router import api_router
@@ -54,6 +55,18 @@ async def root():
 async def health_check():
     """Health check endpoint"""
     return {"status": "healthy", "version": settings.VERSION}
+
+
+@app.get("/docs", include_in_schema=False)
+async def docs_redirect():
+    """Compatibility redirect for documentation endpoint."""
+    return RedirectResponse(url=f"{settings.API_V1_STR}/docs")
+
+
+@app.get("/redoc", include_in_schema=False)
+async def redoc_redirect():
+    """Compatibility redirect for ReDoc endpoint."""
+    return RedirectResponse(url=f"{settings.API_V1_STR}/redoc")
 
 
 # ─────────────────────────────────────────

@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, Query, status
+from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.session import get_db
@@ -100,3 +101,61 @@ async def inventory_report(
     - **movement_summary**: Stock in/out summary
     """
     return await ReportService.inventory_report(user.tenant_id, db)
+
+
+@router.get(
+    "/revenue",
+    response_model=SalesReport,
+    summary="Revenue Report",
+    description="Compatibility alias for revenue report",
+    responses=RESPONSES_ACTION,
+)
+async def revenue_report(
+    months: int = Query(12, ge=1, le=36, description="Number of past months to analyze"),
+    user: TokenData = Depends(get_current_user_context),
+    db: AsyncSession = Depends(get_db),
+):
+    """Compatibility endpoint: revenue report aliases sales KPIs."""
+    return await ReportService.sales_report(user.tenant_id, db, months)
+
+
+@router.get(
+    "/debtors",
+    summary="Debtors Report",
+    description="List customers with outstanding balances",
+    responses=RESPONSES_ACTION,
+)
+async def debtors_report(
+    user: TokenData = Depends(get_current_user_context),
+    db: AsyncSession = Depends(get_db),
+):
+    """Compatibility endpoint for debtors list."""
+    sql = text(
+        """
+        SELECT
+            customer_name,
+            COUNT(*) AS invoice_count,
+            COALESCE(SUM(amount_due), 0) AS outstanding_amount
+        FROM invoice
+        WHERE business_id = :tid
+          AND status != 'cancelled'
+          AND amount_due > 0
+        GROUP BY customer_name
+        ORDER BY outstanding_amount DESC
+        """
+    )
+    rows = (await db.execute(sql, {"tid": str(user.tenant_id)})).mappings().all()
+    data = [
+        {
+            "customer_name": r["customer_name"],
+            "invoice_count": int(r["invoice_count"]),
+            "outstanding_amount": float(r["outstanding_amount"]),
+        }
+        for r in rows
+    ]
+    total_outstanding = round(sum(item["outstanding_amount"] for item in data), 2)
+    return {
+        "total_debtors": len(data),
+        "total_outstanding": total_outstanding,
+        "data": data,
+    }

@@ -69,7 +69,7 @@ class Purchase(Base):
     terms: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     # Relationships
-    business: Mapped["Business"] = relationship("Business")
+    business: Mapped["Business"] = relationship("Business", back_populates="purchases")
     vendor: Mapped["Vendor"] = relationship("Vendor", back_populates="purchases")
     items: Mapped[list["PurchaseItem"]] = relationship(
         "PurchaseItem", back_populates="purchase", cascade="all, delete-orphan"
@@ -115,7 +115,7 @@ class PurchaseItem(Base):
     quantity_invoiced: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
 
     # Relationships
-    business: Mapped["Business"] = relationship("Business")
+    business: Mapped["Business"] = relationship("Business", back_populates="purchase_items")
     purchase: Mapped["Purchase"] = relationship("Purchase", back_populates="items")
     product: Mapped["Product | None"] = relationship("Product")
 

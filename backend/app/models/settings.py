@@ -38,7 +38,7 @@ class Settings(Base):
     data_type: Mapped[str] = mapped_column(String(50), default="string", nullable=False)  # string, int, bool, json
 
     # Relationships
-    business: Mapped["Business"] = relationship("Business")
+    business: Mapped["Business"] = relationship("Business", back_populates="settings")
 
     def __repr__(self) -> str:
         return f"<Settings {self.category}:{self.key}>"

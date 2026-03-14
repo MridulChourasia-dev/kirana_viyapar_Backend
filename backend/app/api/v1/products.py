@@ -74,6 +74,29 @@ async def list_products(
     return await ProductService.list(user.tenant_id, db, page, per_page, search, category_id)
 
 @router.get(
+    "/products/low-stock",
+    response_model=ProductListResponse,
+    summary="Low Stock Products",
+    description="List products where stock quantity is less than or equal to low stock threshold",
+    responses=RESPONSES_LIST,
+)
+async def list_low_stock_products(
+    page: int = Query(1, ge=1, description="Page number"),
+    per_page: int = Query(20, ge=1, le=100, description="Items per page"),
+    user: TokenData = Depends(get_current_user_context),
+    db: AsyncSession = Depends(get_db),
+):
+    """Compatibility endpoint for API reference low-stock route."""
+    products = await ProductService.list(user.tenant_id, db, page=1, per_page=10000)
+    low_stock = [p for p in products.data if p.stock_quantity <= p.low_stock_alert]
+    start = (page - 1) * per_page
+    end = start + per_page
+    page_data = low_stock[start:end]
+    total = len(low_stock)
+    total_pages = (total + per_page - 1) // per_page if total > 0 else 1
+    return ProductListResponse(data=page_data, total=total, page=page, per_page=per_page, total_pages=total_pages)
+
+@router.get(
     "/products/{product_id}",
     response_model=ProductResponse,
     summary="Get Product Details",
@@ -102,6 +125,23 @@ async def update_product(
     db: AsyncSession = Depends(get_db),
 ):
     """Partially update a product."""
+    return await ProductService.update(user.tenant_id, product_id, payload, db)
+
+
+@router.put(
+    "/products/{product_id}",
+    response_model=ProductResponse,
+    summary="Update Product (PUT Alias)",
+    description="Compatibility alias for full product update via PUT",
+    responses=RESPONSES_UPDATE,
+)
+async def update_product_put(
+    product_id: str,
+    payload: ProductUpdate,
+    user: TokenData = Depends(get_current_user_context),
+    db: AsyncSession = Depends(get_db),
+):
+    """Compatibility alias for clients using PUT instead of PATCH."""
     return await ProductService.update(user.tenant_id, product_id, payload, db)
 
 @router.delete(
@@ -134,6 +174,7 @@ async def upload_product_image(
 ):
     """Upload or replace a product image (max 5 MB, jpg/png/webp)."""
     return await ProductService.upload_image(user.tenant_id, product_id, file, db)
+
 
 # ─── Categories ───────────────────────────
 

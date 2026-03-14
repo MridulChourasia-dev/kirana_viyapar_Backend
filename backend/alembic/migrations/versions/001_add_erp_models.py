@@ -11,13 +11,13 @@ from sqlalchemy.dialects import postgresql
 
 # revision identifiers
 revision = '001_add_erp_models'
-down_revision = None
+down_revision = '000_create_core_tables'
 branch_labels = None
 depends_on = None
 
 
 def upgrade():
-    """Create new ERP tables."""
+    """Create new ERP tables: vendor, purchase, expense."""
     
     # Create vendor table
     op.create_table(
@@ -154,67 +154,11 @@ def upgrade():
         sa.Index('ix_expense_expense_date', 'expense_date'),
     )
 
-    # Create permission table
-    op.create_table(
-        'permission',
-        sa.Column('id', postgresql.UUID(as_uuid=True), nullable=False),
-        sa.Column('resource', sa.String(100), nullable=False),
-        sa.Column('action', sa.String(50), nullable=False),
-        sa.Column('name', sa.String(255), nullable=False, unique=True),
-        sa.Column('description', sa.Text, nullable=True),
-        sa.Column('category', sa.String(100), nullable=False),
-        sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.func.now()),
-        sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.func.now()),
-        sa.PrimaryKeyConstraint('id'),
-        sa.Index('ix_permission_resource', 'resource'),
-        sa.Index('ix_permission_category', 'category'),
-        sa.UniqueConstraint('resource', 'action', name='uq_permission_resource_action'),
-    )
-
-    # Create role table
-    op.create_table(
-        'role',
-        sa.Column('id', postgresql.UUID(as_uuid=True), nullable=False),
-        sa.Column('business_id', postgresql.UUID(as_uuid=True), nullable=False),
-        sa.Column('name', sa.String(255), nullable=False),
-        sa.Column('description', sa.Text, nullable=True),
-        sa.Column('is_system_role', sa.Boolean, server_default='false'),
-        sa.Column('is_active', sa.Boolean, server_default='true'),
-        sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.func.now()),
-        sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.func.now()),
-        sa.ForeignKeyConstraint(['business_id'], ['business.id'], ondelete='CASCADE'),
-        sa.PrimaryKeyConstraint('id'),
-        sa.Index('ix_role_business_id', 'business_id'),
-    )
-
-    # Create role_permission association table
-    op.create_table(
-        'role_permission',
-        sa.Column('role_id', postgresql.UUID(as_uuid=True), nullable=False),
-        sa.Column('permission_id', postgresql.UUID(as_uuid=True), nullable=False),
-        sa.ForeignKeyConstraint(['permission_id'], ['permission.id'], ondelete='CASCADE'),
-        sa.ForeignKeyConstraint(['role_id'], ['role.id'], ondelete='CASCADE'),
-        sa.PrimaryKeyConstraint('role_id', 'permission_id'),
-    )
-
-    # Add custom_role_id to users table
-    op.add_column('users', sa.Column('custom_role_id', postgresql.UUID(as_uuid=True), nullable=True))
-    op.create_index('ix_users_custom_role_id', 'users', ['custom_role_id'])
-    op.create_foreign_key('fk_users_custom_role_id', 'users', 'role', ['custom_role_id'], ['id'], ondelete='SET NULL')
-
 
 def downgrade():
-    """Revert new ERP tables."""
+    """Revert ERP tables."""
     
-    # Drop foreign key and column from users
-    op.drop_constraint('fk_users_custom_role_id', 'users', type_='foreignkey')
-    op.drop_index('ix_users_custom_role_id', 'users')
-    op.drop_column('users', 'custom_role_id')
-
     # Drop tables (in reverse order of creation due to FKs)
-    op.drop_table('role_permission')
-    op.drop_table('role')
-    op.drop_table('permission')
     op.drop_table('expense')
     op.drop_table('expense_category')
     op.drop_table('purchase_item')

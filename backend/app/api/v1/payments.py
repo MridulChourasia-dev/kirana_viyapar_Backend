@@ -74,6 +74,37 @@ async def list_payments_for_invoice(
 
 
 @router.get(
+    "/",
+    response_model=PaymentListResponse,
+    summary="List Payments",
+    description="Compatibility endpoint to list all payments for current business",
+    responses=RESPONSES_LIST,
+)
+async def list_payments(
+    user: TokenData = Depends(get_current_user_context),
+    db: AsyncSession = Depends(get_db),
+):
+    """List all payments for the tenant."""
+    return await PaymentService.list_all(user.tenant_id, db)
+
+
+@router.get(
+    "/{payment_id}",
+    response_model=PaymentResponse,
+    summary="Get Payment Details",
+    description="Compatibility endpoint to fetch payment by ID",
+    responses=RESPONSES_READ,
+)
+async def get_payment(
+    payment_id: str,
+    user: TokenData = Depends(get_current_user_context),
+    db: AsyncSession = Depends(get_db),
+):
+    """Get a single payment by ID."""
+    return await PaymentService.get_by_id(user.tenant_id, payment_id, db)
+
+
+@router.get(
     "/customer/{customer_id}",
     response_model=CustomerBalanceResponse,
     summary="Customer Online Balance",

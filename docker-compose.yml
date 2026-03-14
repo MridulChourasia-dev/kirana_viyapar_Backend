@@ -32,8 +32,12 @@ services:
     container_name: viyapar-backend
     environment:
       DATABASE_URL: postgresql+asyncpg://${DB_USER:-viyapar}:${DB_PASSWORD:-changeme}@postgres:5432/${DB_NAME:-viyapar}
+      POSTGRES_SERVER: postgres
+      POSTGRES_USER: ${DB_USER:-viyapar}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-changeme}
+      POSTGRES_DB: ${DB_NAME:-viyapar}
       REDIS_URL: redis://redis:6379/0
-      JWT_SECRET_KEY: ${JWT_SECRET_KEY}
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:-change-me-in-production}
       ENVIRONMENT: ${ENVIRONMENT:-production}
       DEBUG: "false"
       LOG_LEVEL: ${LOG_LEVEL:-info}
@@ -91,7 +95,7 @@ services:
     depends_on:
       - backend
     healthcheck:
-      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:80/health"]
+      test: ["CMD", "curl", "-f", "http://127.0.0.1:80/health"]
       interval: 30s
       timeout: 10s
       retries: 3

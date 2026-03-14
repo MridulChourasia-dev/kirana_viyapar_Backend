@@ -56,7 +56,7 @@ async def _next_invoice_number(tenant_id: str, db: AsyncSession) -> str:
     year = date.today().year
     prefix = f"INV-{year}-"
     count_q = select(func.count(Invoice.id)).where(
-        Invoice.tenant_id == tenant_id,
+        Invoice.business_id == tenant_id,
         Invoice.invoice_number.like(f"{prefix}%"),
     )
     seq = (await db.execute(count_q)).scalar() or 0
@@ -85,7 +85,6 @@ class InvoiceService:
         for i in payload.items:
             calc = _calc_item(i, payload.is_igst)
             item_rows.append(InvoiceItem(
-                business_id=tenant_id,
                 product_id=uuid.UUID(i.product_id) if i.product_id else None,
                 product_name=i.product_name,
                 hsn_code=i.hsn_code,
@@ -116,10 +115,10 @@ class InvoiceService:
             customer_id=uuid.UUID(payload.customer_id) if payload.customer_id else None,
             customer_name=payload.customer_name,
             customer_phone=payload.customer_phone,
-            customer_gst=payload.customer_gst,
+            customer_gstin=payload.customer_gst,
             billing_address=payload.billing_address,
-            invoice_date=payload.invoice_date,
-            due_date=payload.due_date,
+            invoice_date=date.fromisoformat(payload.invoice_date),
+            due_date=date.fromisoformat(payload.due_date) if payload.due_date else None,
             is_igst=payload.is_igst,
             subtotal=subtotal,
             total_cgst=total_cgst,
@@ -223,6 +222,7 @@ class InvoiceService:
                 invoice.status = InvoiceStatus.PARTIALLY_PAID
 
         await db.commit()
+        await db.refresh(invoice)
         await db.refresh(invoice, attribute_names=["items"])
         return InvoiceService._to_response(invoice)
 
@@ -238,7 +238,7 @@ class InvoiceService:
 
     @staticmethod
     async def get_summary(tenant_id: str, db: AsyncSession) -> InvoiceSummary:
-        base = Invoice.tenant_id == tenant_id
+        base = Invoice.business_id == tenant_id
 
         total_q = select(func.count(Invoice.id)).where(base)
         total_invoices = (await db.execute(total_q)).scalar() or 0
@@ -291,11 +291,11 @@ class InvoiceService:
             customer_id=str(invoice.customer_id) if invoice.customer_id else None,
             customer_name=invoice.customer_name,
             customer_phone=invoice.customer_phone,
-            customer_gst=invoice.customer_gst,
+            customer_gst=invoice.customer_gstin,
             billing_address=invoice.billing_address,
             status=invoice.status.value if hasattr(invoice.status, "value") else invoice.status,
-            invoice_date=invoice.invoice_date,
-            due_date=invoice.due_date,
+            invoice_date=invoice.invoice_date.isoformat() if invoice.invoice_date else None,
+            due_date=invoice.due_date.isoformat() if invoice.due_date else None,
             subtotal=float(invoice.subtotal),
             total_cgst=float(invoice.total_cgst),
             total_sgst=float(invoice.total_sgst),
@@ -322,8 +322,8 @@ class InvoiceService:
             customer_name=invoice.customer_name,
             customer_phone=invoice.customer_phone,
             status=invoice.status.value if hasattr(invoice.status, "value") else invoice.status,
-            invoice_date=invoice.invoice_date,
-            due_date=invoice.due_date,
+            invoice_date=invoice.invoice_date.isoformat() if invoice.invoice_date else None,
+            due_date=invoice.due_date.isoformat() if invoice.due_date else None,
             grand_total=float(invoice.grand_total),
             amount_paid=float(invoice.amount_paid),
             amount_due=float(invoice.amount_due),

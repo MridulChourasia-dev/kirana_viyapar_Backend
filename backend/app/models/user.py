@@ -30,9 +30,8 @@ class User(Base):
     phone: Mapped[str | None] = mapped_column(String(20), unique=True, nullable=True)
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     password_hash: Mapped[str] = mapped_column(String(255), nullable=False)
-    role: Mapped[UserRole] = mapped_column(
-        SQLEnum(UserRole), default=UserRole.STAFF, nullable=False
-    )
+    # Store role as plain string in database (VARCHAR), validation happens in ORM
+    role: Mapped[str] = mapped_column(String(50), default="staff", nullable=False)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
 
     # Foreign Keys

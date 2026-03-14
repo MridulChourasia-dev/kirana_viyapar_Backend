@@ -3,7 +3,7 @@ import uuid
 import os
 from pathlib import Path
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func, or_
+from sqlalchemy import select, func, or_, delete
 from sqlalchemy.orm import selectinload
 from fastapi import HTTPException, status, UploadFile
 
@@ -108,13 +108,18 @@ class ProductService:
         for field, value in payload.model_dump(exclude_unset=True).items():
             setattr(product, field, value)
         await db.commit()
-        await db.refresh(product, attribute_names=["category"])
+        # Refresh scalar fields first (e.g. updated_at), then relationship if needed.
+        await db.refresh(product)
+        if product.category_id:
+            await db.refresh(product, attribute_names=["category"])
         return ProductService._to_response(product)
 
     @staticmethod
     async def delete(tenant_id: str, product_id: str, db: AsyncSession) -> None:
-        product = await ProductService._get_or_404(tenant_id, product_id, db)
-        await db.delete(product)
+        stmt = delete(Product).where(Product.id == product_id, Product.business_id == tenant_id)
+        result = await db.execute(stmt)
+        if result.rowcount == 0:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Product not found")
         await db.commit()
 
     # ─── Image Upload ───

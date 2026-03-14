@@ -23,7 +23,7 @@ class AuditLog(Base):
         ForeignKey("business.id", ondelete="CASCADE"), nullable=False, index=True
     )
     user_id: Mapped[uuid.UUID | None] = mapped_column(
-        ForeignKey("user.id", ondelete="SET NULL"), nullable=True, index=True
+        ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True
     )
 
     # What entity was affected
@@ -48,7 +48,7 @@ class AuditLog(Base):
     timestamp: Mapped[datetime] = mapped_column(nullable=False, index=True)
 
     # Relationships
-    business: Mapped["Business"] = relationship("Business")
+    business: Mapped["Business"] = relationship("Business", back_populates="audit_logs")
     user: Mapped["User | None"] = relationship("User")
 
     def __repr__(self) -> str:
