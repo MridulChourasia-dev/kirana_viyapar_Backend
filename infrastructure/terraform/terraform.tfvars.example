@@ -1,0 +1,63 @@
+# Viyapar Terraform Configuration - Example Values
+# Copy this file to terraform.tfvars and update with your production values
+# DO NOT commit terraform.tfvars to version control (contains secrets)
+
+# AWS Configuration
+aws_region = "us-east-1"
+
+# Application Configuration
+app_name    = "viyapar"
+environment = "production"
+
+# VPC Configuration
+vpc_cidr              = "10.0.0.0/16"
+public_subnet_1_cidr  = "10.0.1.0/24"
+public_subnet_2_cidr  = "10.0.2.0/24"
+private_subnet_1_cidr = "10.0.10.0/24"
+private_subnet_2_cidr = "10.0.11.0/24"
+
+# Domain Configuration
+domain_name = "api.viyapar.com"  # Change to your actual domain
+
+# Docker Image Configuration
+docker_image_url = "docker.io/your-username/viyapar-backend"  # Change to your Docker Hub username
+docker_image_tag = "latest"
+
+# Database Configuration
+db_instance_class      = "db.t3.small"      # Start with small, scale up as needed
+db_allocated_storage   = 20                 # 20GB initial storage
+database_name          = "viyapar"
+database_username      = "admin"
+database_password      = "CHANGE_ME_TO_STRONG_PASSWORD_123!"  # Generate: openssl rand -base64 32
+
+# ECS Configuration
+ecs_task_cpu      = "512"   # vCPU units (256, 512, 1024, 2048, 4096)
+ecs_task_memory   = "1024"  # Memory in MB
+ecs_desired_count = 2       # Number of running tasks
+ecs_min_capacity  = 2       # Minimum for auto-scaling
+ecs_max_capacity  = 10      # Maximum for auto-scaling
+
+# ElastiCache Redis Configuration
+redis_node_type = "cache.t3.small"
+
+# Security Secrets
+jwt_secret_key = "CHANGE_ME_TO_STRONG_JWT_SECRET_32_BYTES_LONG_BASE64"  # Generate: openssl rand -base64 32
+
+# Email/SMTP Configuration
+smtp_host     = "smtp.gmail.com"
+smtp_port     = 587
+smtp_user     = "noreply@viyapar.com"  # Change to your email
+smtp_password = "your-app-specific-password"  # Gmail: create app password
+
+# CORS Configuration
+backend_allowed_origins = [
+  "https://api.viyapar.com",
+  "https://app.viyapar.com",
+]
+
+# Logging Configuration
+log_level            = "INFO"
+enable_monitoring    = true
+
+# Optional: Slack Notifications
+slack_webhook_url = ""  # Leave empty or set to your Slack webhook URL

@@ -1,0 +1,55 @@
+{
+  "cli": {
+    "version": ">= 3.13.0"
+  },
+  "build": {
+    "production": {
+      "distribution": "store",
+      "android": {
+        "buildType": "release",
+        "keystore": {
+          "keystorePath": "viyapar-prod.keystore",
+          "keystorePassword": "$KEYSTORE_PASSWORD",
+          "keyAlias": "viyapar-key",
+          "keyPassword": "$KEY_PASSWORD"
+        }
+      },
+      "ios": {
+        "buildType": "release",
+        "provisioning": "universal"
+      }
+    },
+    "preview": {
+      "distribution": "internal",
+      "android": {
+        "buildType": "apk"
+      }
+    },
+    "development": {
+      "developmentClient": true,
+      "distribution": "internal"
+    }
+  },
+  "submit": {
+    "production": {
+      "android": {
+        "serviceAccount": "$ANDROID_SERVICE_ACCOUNT",
+        "track": "internal",
+        "changesNotSentForReview": false
+      },
+      "ios": {
+        "appleId": "$APPLE_ID",
+        "appleIdPassword": "$APPLE_ID_PASSWORD",
+        "ascAppId": "YOUR_APP_STORE_CONNECT_ID",
+        "teamId": "YOUR_APPLE_TEAM_ID",
+        "signingCertificateIssueSeverity": "error"
+      }
+    },
+    "preview": {
+      "android": {
+        "serviceAccount": "$ANDROID_SERVICE_ACCOUNT",
+        "track": "beta"
+      }
+    }
+  }
+}

@@ -1,0 +1,186 @@
+name: Android Build & Release
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+    paths:
+      - 'mobile/**'
+      - 'eas.json'
+      - '.github/workflows/android.yml'
+  pull_request:
+    branches:
+      - main
+      - develop
+    paths:
+      - 'mobile/**'
+  workflow_dispatch:
+    inputs:
+      build_type:
+        description: 'Build type'
+        required: true
+        default: 'preview'
+        type: choice
+        options:
+          - preview
+          - production
+
+jobs:
+  build-preview:
+    name: Build Preview APK
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request' || (github.event_name == 'workflow_dispatch' && github.event.inputs.build_type == 'preview')
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: 'mobile/package-lock.json'
+
+      - name: Install dependencies
+        run: |
+          cd mobile
+          npm ci
+
+      - name: Setup EAS CLI
+        run: npm install -g eas-cli
+
+      - name: Build with EAS
+        env:
+          EAS_TOKEN: ${{ secrets.EAS_TOKEN }}
+        run: |
+          cd mobile
+          eas build --platform android --profile preview --non-interactive
+
+      - name: Upload APK to artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: preview-apk
+          path: mobile/build/*.apk
+          retention-days: 7
+
+      - name: Comment PR with download link
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v6
+        with:
+          script: |
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: '📱 Preview APK built and ready for testing. Download from [artifacts](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})'
+            })
+
+  build-production:
+    name: Build Production AAB
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: 'mobile/package-lock.json'
+
+      - name: Install dependencies
+        run: |
+          cd mobile
+          npm ci
+
+      - name: Setup EAS CLI
+        run: npm install -g eas-cli
+
+      - name: Build with EAS
+        env:
+          EAS_TOKEN: ${{ secrets.EAS_TOKEN }}
+        run: |
+          cd mobile
+          eas build --platform android --profile production --non-interactive
+
+      - name: Upload AAB to artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: production-aab
+          path: mobile/build/*.aab
+          retention-days: 30
+
+  lint-mobile:
+    name: Lint Mobile Code
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: 'mobile/package-lock.json'
+
+      - name: Install dependencies
+        run: |
+          cd mobile
+          npm ci
+
+      - name: Run ESLint
+        run: |
+          cd mobile
+          npm run lint --if-present
+
+      - name: Check TypeScript
+        run: |
+          cd mobile
+          npm run type-check --if-present
+
+  release-to-play-store:
+    name: Release to Google Play
+    runs-on: ubuntu-latest
+    needs: build-production
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Download production AAB
+        uses: actions/download-artifact@v3
+        with:
+          name: production-aab
+
+      - name: Setup EAS CLI
+        run: npm install -g eas-cli
+
+      - name: Submit to Play Store
+        env:
+          EAS_TOKEN: ${{ secrets.EAS_TOKEN }}
+        run: |
+          cd mobile
+          eas submit --platform android --profile production --non-interactive
+
+      - name: Slack notification
+        uses: slackapi/slack-github-action@v1.24.0
+        if: always()
+        with:
+          webhook-url: ${{ secrets.SLACK_WEBHOOK_URL }}
+          payload: |
+            {
+              "text": "Android release ${{ job.status }}",
+              "blocks": [
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "*Android Release*\nStatus: ${{ job.status }}\nVersion: ${{ github.ref_name }}\nCommit: ${{ github.sha }}"
+                  }
+                }
+              ]
+            }
