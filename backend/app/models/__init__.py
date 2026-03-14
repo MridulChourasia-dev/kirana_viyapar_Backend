@@ -7,6 +7,13 @@ from app.models.product import Product, ProductUnit
 from app.models.stock_movement import StockMovement, MovementType, MovementReason
 from app.models.invoice import Invoice, InvoiceItem, InvoiceStatus, PaymentMode
 from app.models.payment import Payment, PaymentMethod
+from app.models.vendor import Vendor
+from app.models.purchase import Purchase, PurchaseItem, PurchaseStatus
+from app.models.expense import Expense, ExpenseCategory
+from app.models.role import Role, Permission, role_permission
+from app.models.audit_log import AuditLog
+from app.models.notification import Notification, NotificationType
+from app.models.settings import Settings
 
 __all__ = [
     "User", "UserRole", "Business", "Customer",
@@ -14,4 +21,11 @@ __all__ = [
     "StockMovement", "MovementType", "MovementReason",
     "Invoice", "InvoiceItem", "InvoiceStatus", "PaymentMode",
     "Payment", "PaymentMethod",
+    "Vendor",
+    "Purchase", "PurchaseItem", "PurchaseStatus",
+    "Expense", "ExpenseCategory",
+    "Role", "Permission", "role_permission",
+    "AuditLog",
+    "Notification", "NotificationType",
+    "Settings",
 ]

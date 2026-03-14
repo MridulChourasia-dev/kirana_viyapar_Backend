@@ -65,9 +65,11 @@ class BusinessResponse(BaseModel):
     address: str | None
     city: str | None
     state: str | None
+    country: str | None
     pincode: str | None
     gstin: str | None
     pan: str | None
+    logo_url: str | None
 
 
 class TokenResponse(BaseModel):
@@ -76,22 +78,11 @@ class TokenResponse(BaseModel):
     access_token: str
     refresh_token: str | None = None
     token_type: str = "bearer"
-    expires_in: int
 
-
-class LoginResponse(BaseModel):
-    """Login response with user and tokens"""
-
-    user: UserResponse
-    business: BusinessResponse
-    tokens: TokenResponse
-
-class TokenResponse(BaseModel):
-    access_token: str
-    refresh_token: str
-    token_type: str = "bearer"
 
 class AuthResponse(BaseModel):
+    """Auth response with user, business, and tokens"""
+
     user: UserResponse
     business: BusinessResponse
     tokens: TokenResponse

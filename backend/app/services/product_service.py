@@ -33,7 +33,7 @@ class ProductService:
     @staticmethod
     async def create(tenant_id: str, payload: ProductCreate, db: AsyncSession) -> ProductResponse:
         product = Product(
-            tenant_id=tenant_id,
+            business_id=tenant_id,
             name=payload.name,
             sku=payload.sku,
             hsn_code=payload.hsn_code,
@@ -64,7 +64,7 @@ class ProductService:
         query = (
             select(Product)
             .options(selectinload(Product.category))
-            .where(Product.tenant_id == tenant_id)
+            .where(Product.business_id == tenant_id)
         )
 
         if search:
@@ -159,7 +159,7 @@ class ProductService:
         result = await db.execute(
             select(Product)
             .options(selectinload(Product.category))
-            .where(Product.id == product_id, Product.tenant_id == tenant_id)
+            .where(Product.id == product_id, Product.business_id == tenant_id)
         )
         product = result.scalar_one_or_none()
         if not product:
@@ -197,7 +197,7 @@ class CategoryService:
 
     @staticmethod
     async def create(tenant_id: str, payload: CategoryCreate, db: AsyncSession) -> CategoryResponse:
-        category = Category(tenant_id=tenant_id, name=payload.name, description=payload.description)
+        category = Category(business_id=tenant_id, name=payload.name, description=payload.description)
         db.add(category)
         await db.commit()
         await db.refresh(category)
@@ -207,7 +207,7 @@ class CategoryService:
     async def list(tenant_id: str, db: AsyncSession) -> list[CategoryResponse]:
         result = await db.execute(
             select(Category)
-            .where(Category.tenant_id == tenant_id)
+            .where(Category.business_id == tenant_id)
             .order_by(Category.name.asc())
         )
         return [CategoryService._to_response(c) for c in result.scalars().all()]
@@ -217,7 +217,7 @@ class CategoryService:
         tenant_id: str, category_id: str, payload: CategoryUpdate, db: AsyncSession
     ) -> CategoryResponse:
         result = await db.execute(
-            select(Category).where(Category.id == category_id, Category.tenant_id == tenant_id)
+            select(Category).where(Category.id == category_id, Category.business_id == tenant_id)
         )
         category = result.scalar_one_or_none()
         if not category:
@@ -232,7 +232,7 @@ class CategoryService:
     @staticmethod
     async def delete(tenant_id: str, category_id: str, db: AsyncSession) -> None:
         result = await db.execute(
-            select(Category).where(Category.id == category_id, Category.tenant_id == tenant_id)
+            select(Category).where(Category.id == category_id, Category.business_id == tenant_id)
         )
         category = result.scalar_one_or_none()
         if not category:

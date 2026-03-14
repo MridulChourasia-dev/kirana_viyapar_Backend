@@ -39,9 +39,13 @@ class User(Base):
     business_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("business.id", ondelete="CASCADE"), nullable=False, index=True
     )
+    custom_role_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("role.id", ondelete="SET NULL"), nullable=True, index=True
+    )
 
     # Relationships
     business: Mapped["Business"] = relationship("Business", back_populates="users")
+    custom_role: Mapped["Role | None"] = relationship("Role", back_populates="users")
 
     def __repr__(self) -> str:
         return f"<User {self.email} ({self.role})>"

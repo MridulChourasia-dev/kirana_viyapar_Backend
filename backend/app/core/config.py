@@ -43,7 +43,7 @@ class Settings(BaseSettings):
         "http://localhost:8080",
     ]
 
-    model_config = SettingsConfigDict(case_sensitive=True, env_file=".env")
+    model_config = SettingsConfigDict(case_sensitive=True, env_file=".env", extra="ignore")
 
     @property
     def ASYNC_DATABASE_URL(self) -> str:
