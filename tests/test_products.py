@@ -14,6 +14,7 @@ import pytest
 import httpx
 import uuid
 from typing import Dict, Any
+from conftest import generate_unique_sku
 
 pytestmark = pytest.mark.products
 
@@ -21,7 +22,7 @@ pytestmark = pytest.mark.products
 @pytest.mark.asyncio
 async def test_create_product_success(authenticated_client: httpx.AsyncClient):
     """Test successful product creation"""
-    unique_sku = f"SKU-{uuid.uuid4().hex[:8].upper()}"
+    unique_sku = generate_unique_sku()
     
     payload = {
         "name": "Wireless Mouse",
@@ -64,7 +65,7 @@ async def test_create_product_success(authenticated_client: httpx.AsyncClient):
 @pytest.mark.asyncio
 async def test_create_product_minimal(authenticated_client: httpx.AsyncClient):
     """Test product creation with minimal fields"""
-    unique_sku = f"SKU-{uuid.uuid4().hex[:8].upper()}"
+    unique_sku = generate_unique_sku()
     
     payload = {
         "name": "Basic Product",
@@ -311,7 +312,7 @@ async def test_create_product_missing_name(authenticated_client: httpx.AsyncClie
 @pytest.mark.asyncio
 async def test_create_product_negative_price(authenticated_client: httpx.AsyncClient):
     """Test creating product with negative price"""
-    unique_sku = f"SKU-{uuid.uuid4().hex[:8].upper()}"
+    unique_sku = generate_unique_sku()
     
     payload = {
         "name": "Invalid Product",
@@ -373,10 +374,8 @@ async def test_product_business_isolation(http_client: httpx.AsyncClient):
 @pytest.mark.asyncio
 async def test_low_stock_alert(authenticated_client: httpx.AsyncClient):
     """Test low stock alert endpoint (if implemented)"""
-    import uuid as uuid_lib
-
     # Create product with low stock
-    unique_sku = f"SKU-LOWSTOCK-{uuid_lib.uuid4().hex[:6].upper()}"
+    unique_sku = generate_unique_sku()
     payload = {
         "name": "Low Stock Product",
         "sku": unique_sku,

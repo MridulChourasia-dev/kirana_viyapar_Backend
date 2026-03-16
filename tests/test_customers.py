@@ -13,6 +13,7 @@ import pytest
 import httpx
 import uuid
 from typing import Dict, Any
+from conftest import generate_unique_email, generate_unique_phone
 
 pytestmark = pytest.mark.customers
 
@@ -20,8 +21,8 @@ pytestmark = pytest.mark.customers
 @pytest.mark.asyncio
 async def test_create_customer_success(authenticated_client: httpx.AsyncClient):
     """Test successful customer creation"""
-    unique_email = f"customer.{uuid.uuid4().hex[:6]}@example.com"
-    unique_phone = f"+91{uuid.uuid4().hex[:10]}".replace('a', '1')[:13]
+    unique_email = generate_unique_email("customer")
+    unique_phone = generate_unique_phone()
     
     payload = {
         "name": "Rajesh Kumar",
@@ -69,7 +70,7 @@ async def test_create_customer_success(authenticated_client: httpx.AsyncClient):
 @pytest.mark.asyncio
 async def test_create_customer_minimal(authenticated_client: httpx.AsyncClient):
     """Test customer creation with minimal fields"""
-    unique_email = f"minimal.{uuid.uuid4().hex[:6]}@example.com"
+    unique_email = generate_unique_email("minimal")
     
     payload = {
         "name": "Minimal Customer",
@@ -202,7 +203,7 @@ async def test_update_customer_success(authenticated_client: httpx.AsyncClient, 
     
     update_payload = {
         "name": "Rajesh Kumar - Updated",
-        "phone": f"+91{uuid.uuid4().hex[:10]}".replace('a', '1')[:13],
+        "phone": generate_unique_phone(),
         "city": "Bangalore",
         "billing_address": "789 Whitefield, Bangalore",
         "notes": "Updated notes",
@@ -351,12 +352,11 @@ async def test_create_customer_duplicate_email(authenticated_client: httpx.Async
 @pytest.mark.asyncio
 async def test_customer_business_isolation(http_client: httpx.AsyncClient):
     """Test that customers are isolated per business"""
-    import uuid as uuid_lib
     from conftest import test_state, create_customer
     
     # Create another business/user
-    unique_email = f"business2.{uuid_lib.uuid4().hex[:6]}@example.com"
-    unique_phone = f"+91{uuid_lib.uuid4().hex[:10]}".replace('a', '1')[:13]
+    unique_email = generate_unique_email("business2")
+    unique_phone = generate_unique_phone()
     
     register_payload = {
         "business_name": "Business 2",

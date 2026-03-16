@@ -4,6 +4,7 @@ Pytest configuration and shared fixtures for API tests
 import pytest
 import httpx
 import uuid
+import time
 from datetime import datetime
 from typing import AsyncGenerator, Dict, Any
 
@@ -14,11 +15,13 @@ from typing import AsyncGenerator, Dict, Any
 BASE_URL = "http://localhost:8000/api/v1"
 TIMEOUT = 30.0
 
-# Test data
+# Test data - Use timestamp + full UUID to prevent collisions
+_timestamp = int(time.time() * 1000)
+_uuid_suffix = uuid.uuid4().hex[:12]  # Use 12 chars instead of 8
 TEST_BUSINESS_NAME = f"Test Business {datetime.now().strftime('%Y%m%d%H%M%S')}"
-TEST_USER_EMAIL = f"test.user.{uuid.uuid4().hex[:8]}@example.com"
+TEST_USER_EMAIL = f"test.user.{_timestamp}.{_uuid_suffix}@example.com"
 TEST_USER_PASSWORD = "TestPassword123!"
-TEST_USER_PHONE = f"+91{uuid.uuid4().hex[:10].replace('0', '1')[:10]}"  # Generate unique phone
+TEST_USER_PHONE = f"+91{uuid.uuid4().hex[:10].replace('a', '1').replace('b', '2')[:10]}"  # Generate unique phone
 
 
 # ─────────────────────────────────────────
@@ -107,6 +110,20 @@ def generate_unique_phone() -> str:
     return f"+91{random_suffix}"
 
 
+def generate_unique_email(prefix: str = "customer") -> str:
+    """Generate a truly unique email with timestamp + full UUID"""
+    ts = int(time.time() * 1000)
+    uid = uuid.uuid4().hex[:16]  # 16 chars for better uniqueness
+    return f"{prefix}.{ts}.{uid}@example.com"
+
+
+def generate_unique_sku() -> str:
+    """Generate a truly unique SKU with timestamp + UUID"""
+    ts = int(time.time() * 1000)
+    uid = uuid.uuid4().hex[:12].upper()
+    return f"SKU-{ts}-{uid}"
+
+
 async def create_customer(
     client: httpx.AsyncClient,
     name: str = "Test Customer",
@@ -123,7 +140,7 @@ async def create_customer(
 ) -> Dict[str, Any]:
     """Helper to create a test customer"""
     if not email:
-        email = f"customer.{uuid.uuid4().hex[:6]}@example.com"
+        email = generate_unique_email("customer")
     if not phone:
         phone = generate_unique_phone()
     
@@ -162,7 +179,7 @@ async def create_product(
 ) -> Dict[str, Any]:
     """Helper to create a test product"""
     if not sku:
-        sku = f"SKU-{uuid.uuid4().hex[:8].upper()}"
+        sku = generate_unique_sku()
     
     payload = {
         "name": name,

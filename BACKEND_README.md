@@ -365,3 +365,13 @@ Proprietary - Viyapar SaaS Platform
 **Want to Understand the Design?** Read [BACKEND_ARCHITECTURE.md](./docs/BACKEND_ARCHITECTURE.md)
 
 **Building an Endpoint?** See [API_REFERENCE.md](./docs/API_REFERENCE.md)
+
+def generate_unique_email(prefix: str = "customer") -> str:
+    """Generate truly unique email"""
+    ts = int(time.time() * 1000)
+    uid = uuid.uuid4().hex[:16]
+    return f"{prefix}.{ts}.{uid}@example.com"
+
+def generate_unique_sku() -> str:
+    """Generate truly unique SKU"""
+    return f"SKU-{uuid.uuid4().hex[:20].upper()}"

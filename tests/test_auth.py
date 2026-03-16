@@ -12,6 +12,7 @@ import pytest
 import httpx
 from datetime import datetime
 import uuid
+from conftest import generate_unique_email, generate_unique_phone
 
 pytestmark = pytest.mark.auth
 
@@ -21,8 +22,8 @@ async def test_register_user_success():
     """Test successful user registration"""
     base_url = "http://localhost:8000/api/v1"
     
-    unique_email = f"newuser.{uuid.uuid4().hex[:6]}@example.com"
-    unique_phone = f"+91{uuid.uuid4().hex[:10]}".replace('a', '1')[:13]
+    unique_email = generate_unique_email("newuser")
+    unique_phone = generate_unique_phone()
     
     payload = {
         "business_name": f"Test Business {datetime.now().isoformat()}",
@@ -67,8 +68,8 @@ async def test_register_user_success():
 @pytest.mark.asyncio
 async def test_login_user_success(http_client: httpx.AsyncClient):
     """Test successful user login"""
-    unique_email = f"login.{uuid.uuid4().hex[:6]}@example.com"
-    unique_phone = f"+91{uuid.uuid4().hex[:10]}".replace('a', '1')[:13]
+    unique_email = generate_unique_email("login")
+    unique_phone = generate_unique_phone()
     password = "SecurePassword123!"
 
     register_payload = {
@@ -147,8 +148,8 @@ async def test_login_invalid_password(http_client: httpx.AsyncClient):
 @pytest.mark.asyncio
 async def test_register_duplicate_email(http_client: httpx.AsyncClient):
     """Test registration with duplicate email"""
-    duplicate_email = f"dup.{uuid.uuid4().hex[:6]}@example.com"
-    unique_phone = f"+91{uuid.uuid4().hex[:10]}".replace('a', '1')[:13]
+    duplicate_email = generate_unique_email("dup")
+    unique_phone = generate_unique_phone()
 
     first_payload = {
         "business_name": "First Business",
@@ -165,7 +166,7 @@ async def test_register_duplicate_email(http_client: httpx.AsyncClient):
         "name": "Another User",
         "email": duplicate_email,  # Already registered in this test
         "password": "DifferentPassword123!",
-        "phone": f"+91{uuid.uuid4().hex[:10]}".replace('a', '1')[:13],
+        "phone": generate_unique_phone(),
     }
     
     response = await http_client.post("/auth/register", json=payload)
